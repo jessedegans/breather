@@ -4,13 +4,13 @@
 
 ---
 
-AI coding tools make you a 100x developer — and make it 100x harder to stop. HBR calls it ["AI brain fry"](https://hbr.org/2026/03/when-using-ai-leads-to-brain-fry): the mental fog, headaches, and decision fatigue from nonstop AI-assisted development. UC Berkeley [found](https://techcrunch.com/2026/02/09/the-first-signs-of-burnout-are-coming-from-the-people-who-embrace-ai-the-most/) the developers burning out first are the power users — not because anyone pressured them, but because they couldn't stop doing more.
+AI coding tools make you a 100x developer, great! AND make it 100x harder to stop. HBR calls it ["AI brain fry"](https://hbr.org/2026/03/when-using-ai-leads-to-brain-fry): the mental fog, headaches, and decision fatigue from nonstop AI-assisted development. UC Berkeley [found](https://techcrunch.com/2026/02/09/the-first-signs-of-burnout-are-coming-from-the-people-who-embrace-ai-the-most/) the developers burning out first are the power users, not because anyone pressured them, but because they couldn't stop doing more.
 
 Sound familiar? Breather is the brake pedal your AI coding setup is missing.
 
 ## How it works
 
-Breather runs **automatically** — no discipline required. That's the point. If you had the discipline to take breaks, you wouldn't need this.
+Breather runs **automatically**, no discipline required. That's the point. If you had the discipline to take breaks, you wouldn't need this.
 
 ### Always on (zero effort)
 
