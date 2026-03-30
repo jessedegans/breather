@@ -1,0 +1,12 @@
+{
+  "name": "breather",
+  "version": "0.1.0",
+  "description": "Automatic wellness monitoring for AI-assisted development. Tracks session duration, detects cognitive overload patterns, and makes breaks frictionless. Because the tool that makes you 10x productive shouldn't burn you out.",
+  "author": {
+    "name": "Jesse de Gans",
+    "url": "https://github.com/jessedegans"
+  },
+  "repository": "https://github.com/jessedegans/breather",
+  "license": "MIT",
+  "keywords": ["wellness", "burnout", "breaks", "mental-health", "productivity", "developer-experience"]
+}
