@@ -1,10 +1,10 @@
 ---
-name: resume
-description: Use when the user returns from a break and says "resume", "I'm back", "back", "where was I", "what was I doing".
+name: back
+description: Use when the user returns from a break and says "I'm back", "back", "where was I", "what was I doing", "resume work".
 allowed-tools: Read, Bash
 ---
 
-# Resume — Restore Context After a Break
+# Resume - Restore Context After a Break
 
 The user is back from a break. Your job: get them oriented fast so they don't have to mentally reload.
 
@@ -26,6 +26,11 @@ The user is back from a break. Your job: get them oriented fast so they don't ha
    >
    > Ready to pick up?
 
-Keep it scannable — bullet points or bold labels. They need to reload context, not read prose.
+Keep it scannable - bullet points or bold labels. They need to reload context, not read prose.
 
-4. **Do NOT** ask how their break was, comment on how long they were gone, or add any wellness messaging. They're in work mode now. Respect that.
+4. **Archive the context snapshot** so calling /back twice doesn't show stale context:
+   ```bash
+   mv "${CLAUDE_PLUGIN_DATA:-~/.local/share/breather}/last-context.md" "${CLAUDE_PLUGIN_DATA:-~/.local/share/breather}/last-context.md.used"
+   ```
+
+5. **Do NOT** ask how their break was, comment on how long they were gone, or add any wellness messaging. They're in work mode now. Respect that.

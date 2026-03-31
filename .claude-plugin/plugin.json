@@ -8,5 +8,6 @@
   },
   "repository": "https://github.com/jessedegans/breather",
   "license": "MIT",
-  "keywords": ["wellness", "burnout", "breaks", "mental-health", "productivity", "developer-experience"]
+  "keywords": ["wellness", "burnout", "breaks", "mental-health", "productivity", "developer-experience"],
+  "hooks": "./hooks/hooks.json"
 }

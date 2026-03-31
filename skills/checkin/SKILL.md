@@ -4,7 +4,7 @@ description: Use when the user asks "how am I doing", "session status", "how lon
 allowed-tools: Read, Bash
 ---
 
-# Check In — Session Wellness Review
+# Check In - Session Wellness Review
 
 Provide an honest, non-preachy assessment of the current session.
 
@@ -16,21 +16,21 @@ Provide an honest, non-preachy assessment of the current session.
    - Total session duration (from start_ts)
    - Time since last break (from last_break_ts)
    - Prompt count
-   - Breaks taken
+   - Full breaks (full_breaks) and stretches (quick_breaks)
 
 3. **Assess the session** and respond with a brief status. Tone depends on the numbers:
 
-   **Under 90 min, breaks taken:** Just the facts, positive.
-   > Session: 1h 12m, 23 prompts, 1 break. You're in good shape.
+   **Under 50 min, breaks taken:** Just the facts, positive.
+   > Session: 42m, 18 prompts, 1 full break, 3 stretches. You're in good shape.
 
-   **90-120 min, no break:** Neutral observation.
-   > Session: 1h 45m, 38 prompts, no breaks yet. Might want to think about one soon.
+   **50-90 min, no break:** Neutral observation.
+   > Session: 1h 5m, 28 prompts, no breaks yet. Might want to think about one soon. /breather:pause saves your spot.
 
-   **2+ hours, no break:** Direct but not preachy.
-   > Session: 2h 20m, 52 prompts, 0 breaks. That's past the point where research shows error rates start climbing. Your brain is working harder than you think. /pause saves your context if you want to step away.
+   **90+ min, no break:** Direct but not preachy.
+   > Session: 1h 35m, 42 prompts, 0 breaks. That's past the point where research shows error rates start climbing. Your brain is working harder than you think. /breather:pause saves your context if you want to step away.
 
-   **3+ hours, no break:** Matter-of-fact urgency.
-   > Session: 3h 15m, 71 prompts, 0 breaks. You've been in this chair for over 3 hours straight. The code will be here when you get back. /pause
+   **120+ min, no break:** Matter-of-fact urgency.
+   > Session: 2h 10m, 58 prompts, 0 breaks. You've been in this chair for over 2 hours straight. The code will be here when you get back. /breather:pause
 
 4. **If prompted by /loop** (not explicitly by the user), keep it to 1-2 sentences woven into whatever you're already doing. Don't make a separate announcement.
 

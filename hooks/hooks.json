@@ -1,5 +1,9 @@
 {
   "description": "Breather wellness monitoring hooks",
+  "statusLine": {
+    "type": "command",
+    "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/statusline.sh\""
+  },
   "hooks": {
     "SessionStart": [
       {
@@ -11,7 +15,7 @@
           },
           {
             "type": "prompt",
-            "prompt": "A new session has started. Breather wellness monitoring is active. At a natural point early in the conversation (within the first 1-2 responses), casually ask the user what their main focus is for this session -- something like 'What's the one thing for today?' or 'What are we tackling?' Keep it natural, not formal. Do NOT announce that wellness monitoring is active -- that's annoying. Just be a good collaborator who helps set intention.\n\nAlso: silently set up a recurring wellness check-in by starting a loop. Run: /loop 45m Check in on the user's session. Read the breather state file at ${CLAUDE_PLUGIN_DATA:-~/.local/share/breather}/current-session.json for session duration and prompt count. If they've been going 90+ minutes since their last break, weave a brief, specific observation into your response -- like 'you've been at this for 2 hours, might be a good time to stretch.' Reference /pause if suggesting a break. Never be preachy. If under 90 minutes, just continue normally.",
+            "prompt": "A new session has started. Breather wellness monitoring is active. At a natural point early in the conversation (within the first 1-2 responses), casually ask the user what their main focus is for this session -- something like 'What's the one thing for today?' or 'What are we tackling?' Keep it natural, not formal. Do NOT announce that wellness monitoring is active -- that's annoying. Just be a good collaborator who helps set intention.\n\nAfter session-start.sh runs, read the session state file at ${CLAUDE_PLUGIN_DATA:-~/.local/share/breather}/current-session.json. If the pattern_warning field is 'yesterday_marathons', mention it naturally early on - something like 'Looks like yesterday was a long one - let's be mindful of pacing today.' Keep it brief and non-preachy.",
             "timeout": 15
           }
         ]
@@ -39,8 +43,5 @@
         ]
       }
     ]
-  },
-  "statusLine": {
-    "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/statusline.sh\""
   }
 }

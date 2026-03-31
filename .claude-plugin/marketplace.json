@@ -1,0 +1,22 @@
+{
+  "name": "breather",
+  "owner": {
+    "name": "Jesse de Gans",
+    "url": "https://github.com/jessedegans"
+  },
+  "metadata": {
+    "description": "Stop AI brain fry. Automatic wellness monitoring for Claude Code."
+  },
+  "plugins": [
+    {
+      "name": "breather",
+      "source": "./",
+      "description": "Automatic wellness monitoring for AI-assisted development. Tracks session duration, detects cognitive overload patterns, and makes breaks frictionless.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Jesse de Gans"
+      },
+      "keywords": ["wellness", "burnout", "breaks", "mental-health", "productivity"]
+    }
+  ]
+}
