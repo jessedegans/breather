@@ -1,7 +1,7 @@
 {
   "name": "breather",
   "version": "0.1.0",
-  "description": "Automatic wellness monitoring for AI-assisted development. Tracks session duration, detects cognitive overload patterns, and makes breaks frictionless. Because the tool that makes you 10x productive shouldn't burn you out.",
+  "description": "The brake pedal your AI coding setup is missing. Tracks how long you've been going, nudges you to take breaks, and saves your context so stopping doesn't cost you 20 minutes of 'where was I?'",
   "author": {
     "name": "Jesse de Gans",
     "url": "https://github.com/jessedegans"
