@@ -73,16 +73,19 @@ Breather checks every prompt but won't spam you -- minimum 10 minutes between nu
 ## Install
 
 ```bash
-claude plugin add jessedegans-plugins/breather
+/plugin marketplace add jessedegans/breather
+/plugin install breather@breather
 ```
 
-Or from the marketplace repo:
+### Optional: status line
 
-```json
-{
-  "plugins": ["jessedegans-plugins/breather"]
-}
+Breather includes a color-coded session timer that sits at the bottom of your terminal. To enable it:
+
 ```
+/breather:setup-statusline
+```
+
+This adds the status line to your Claude Code settings (one-time setup). Restart Claude Code after running it.
 
 ## State and storage
 
