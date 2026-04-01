@@ -1,5 +1,5 @@
 #!/bin/bash
-# Stop hook -- checks if Claude actually delivered the wellness nudge
+# Stop hook -- checks if Claude actually delivered the break nudge
 # If nudge_pending is true but Claude's response doesn't contain evidence
 # of the nudge, increment nudge_ignored_count for escalation next time.
 set -euo pipefail

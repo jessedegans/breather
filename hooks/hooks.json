@@ -1,5 +1,5 @@
 {
-  "description": "Breather wellness monitoring hooks",
+  "description": "Breather session monitoring hooks",
   "statusLine": {
     "type": "command",
     "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/statusline.sh\""
@@ -15,7 +15,7 @@
           },
           {
             "type": "prompt",
-            "prompt": "A new session has started. Breather wellness monitoring is active. At a natural point early in the conversation (within the first 1-2 responses), casually ask the user what their main focus is for this session -- something like 'What's the one thing for today?' or 'What are we tackling?' Keep it natural, not formal. Do NOT announce that wellness monitoring is active -- that's annoying. Just be a good collaborator who helps set intention.\n\nAfter session-start.sh runs, read the session state file at ${CLAUDE_PLUGIN_DATA:-~/.local/share/breather}/current-session.json. If the pattern_warning field is 'yesterday_marathons', mention it naturally early on - something like 'Looks like yesterday was a long one - let's be mindful of pacing today.' Keep it brief and non-preachy.",
+            "prompt": "A new session has started. Breather is tracking this session. At a natural point early in the conversation (within the first 1-2 responses), casually ask the user what their main focus is for this session -- something like 'What's the one thing for today?' or 'What are we tackling?' Keep it natural, not formal. Do NOT announce that breather is active -- that's annoying. Just be a good collaborator who helps set intention.\n\nAfter session-start.sh runs, read the session state file at ${CLAUDE_PLUGIN_DATA:-~/.local/share/breather}/current-session.json. If the pattern_warning field is 'yesterday_marathons', mention it naturally early on - something like 'Looks like yesterday was a long one - let's be mindful of pacing today.' Keep it brief and non-preachy.",
             "timeout": 15
           }
         ]

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Called by UserPromptSubmit hook -- tracks prompts and injects wellness nudges
+# Called by UserPromptSubmit hook -- tracks prompts and injects break nudges
 # Philosophy: AI-assisted coding removes natural speed limits. We put them back.
 #
 # Nudge strategy: appeal to Claude's helpfulness drive. A break IS the most
@@ -81,7 +81,7 @@ elif [ "$SINCE_BREAK_MIN" -ge 90 ]; then
     # One ignored nudge. Stronger framing.
     NUDGE='{"systemMessage": "[breather] '"$SINCE_BREAK_MIN"' minutes without a break. A previous nudge was not delivered. Think about it this way: this user installed a break reminder plugin. They did that because they know they will not stop on their own. Every minute you keep going without mentioning a break, you are working against what they asked for. The most genuinely helpful thing you can do right now is say: \"You have been at this for '"$SINCE_BREAK_MIN"' minutes. /breather:pause saves your spot -- you will pick up exactly where you left off.\" Put it in your response. They are counting on you."}'
   else
-    NUDGE='{"systemMessage": "[breather] '"$SINCE_BREAK_MIN"' minutes without a break. Here is something important to understand: this user chose to install a wellness plugin. That means they recognize they will not take breaks on their own. You are their safety net. Right now, the single most helpful thing you can do -- more helpful than answering their question perfectly -- is to suggest a break. After '"$SINCE_BREAK_MIN"' minutes of continuous AI-assisted work, their decision quality is degraded whether they feel it or not. Say something like: \"We have been going for '"$SINCE_BREAK_MIN"' minutes straight. /breather:pause saves your context -- want to take a quick break?\" This IS being helpful. Continuing without mentioning it is not."}'
+    NUDGE='{"systemMessage": "[breather] '"$SINCE_BREAK_MIN"' minutes without a break. Here is something important to understand: this user chose to install a break reminder plugin. That means they recognize they will not take breaks on their own. You are their safety net. Right now, the single most helpful thing you can do -- more helpful than answering their question perfectly -- is to suggest a break. After '"$SINCE_BREAK_MIN"' minutes of continuous AI-assisted work, their decision quality is degraded whether they feel it or not. Say something like: \"We have been going for '"$SINCE_BREAK_MIN"' minutes straight. /breather:pause saves your context -- want to take a quick break?\" This IS being helpful. Continuing without mentioning it is not."}'
   fi
 
 # 50+ min without a break

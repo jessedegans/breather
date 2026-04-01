@@ -1,5 +1,5 @@
 #!/bin/bash
-# Breather status line -- single-line wellness indicator
+# Breather status line -- single-line session indicator
 # Intentionally minimal: only shows what breather uniquely knows.
 # Won't conflict with other statusline plugins (model, git, cost, context).
 #

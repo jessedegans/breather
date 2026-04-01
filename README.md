@@ -1,6 +1,6 @@
 # breather
 
-**Stop AI brain fry.** Automatic wellness monitoring for Claude Code.
+**Stop AI brain fry.** Automatic break reminders for Claude Code.
 
 ---
 
@@ -104,7 +104,7 @@ All state lives in `$CLAUDE_PLUGIN_DATA` or `~/.local/share/breather/`:
 
 ### The nudge problem (and how we solve it)
 
-Here's the core tension: breather tells Claude "suggest a break," but Claude is an LLM optimizing to be helpful with your question. It can rationalize skipping the nudge -- "the user seems focused, I'll just answer." The very thing that makes AI coding addictive (it always wants to keep helping) works against the wellness intervention.
+Here's the core tension: breather tells Claude "suggest a break," but Claude is an LLM optimizing to be helpful with your question. It can rationalize skipping the nudge -- "the user seems focused, I'll just answer." The very thing that makes AI coding addictive (it always wants to keep helping) works against the break suggestion.
 
 We solve this in three layers:
 
@@ -114,11 +114,11 @@ We solve this in three layers:
 
 **3. Escalate.** First ignored nudge: stronger framing. Second: "you are working against what the user asked for." Third: mandatory pre-formatted break message that Claude must place at the start of its response.
 
-This is the hard problem in AI-native wellness tooling. You can't just show a popup -- the interface IS the AI, and the AI has opinions about what's helpful.
+This is the hard problem in AI-native break reminders. You can't just show a popup -- the interface IS the AI, and the AI has opinions about what's helpful.
 
 ## The research behind it
 
-This isn't wellness theater. Every threshold is backed by research:
+This isn't vibes-based. Every threshold is backed by research:
 
 | Finding | Source |
 |---------|--------|
@@ -136,12 +136,12 @@ Planned but not yet implemented:
 
 - **Configurable thresholds** -- adjust nudge timing, status line colors via plugin settings
 - **Session history viewer** -- `/breather:history` to see your patterns
-- **Weekly wellness report** -- `/breather:weekly` for trend analysis
+- **Weekly report** -- `/breather:weekly` for trend analysis
 - **Focus mode** -- temporarily disable nudges for deep work sprints with a hard time limit
 
 ## Why "breather"?
 
-Because "take a breather" is what you'd say to a colleague who's been grinding for 4 hours straight. Not a lecture. Not a wellness app notification. Just a nudge from someone who notices.
+Because "take a breather" is what you'd say to a colleague who's been grinding for 4 hours straight. Not a lecture. Not a notification you dismiss. Just a nudge from someone who notices.
 
 ## License
 

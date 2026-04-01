@@ -33,4 +33,4 @@ Keep it scannable - bullet points or bold labels. They need to reload context, n
    mv "${CLAUDE_PLUGIN_DATA:-~/.local/share/breather}/last-context.md" "${CLAUDE_PLUGIN_DATA:-~/.local/share/breather}/last-context.md.used"
    ```
 
-5. **Do NOT** ask how their break was, comment on how long they were gone, or add any wellness messaging. They're in work mode now. Respect that.
+5. **Do NOT** ask how their break was, comment on how long they were gone, or add any preachy messaging. They're in work mode now. Respect that.

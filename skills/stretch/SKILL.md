@@ -25,4 +25,4 @@ The user is taking a quick break - not leaving, just stepping away from the scre
 
    > Go for it. [duration] in, stretch is earned.
 
-4. **Do NOT** save context, suggest break duration, or add any wellness messaging. They said quick break, respect that.
+4. **Do NOT** save context, suggest break duration, or add any preachy messaging. They said quick break, respect that.

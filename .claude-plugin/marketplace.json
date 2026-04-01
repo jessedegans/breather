@@ -5,18 +5,18 @@
     "url": "https://github.com/jessedegans"
   },
   "metadata": {
-    "description": "Stop AI brain fry. Automatic wellness monitoring for Claude Code."
+    "description": "Stop AI brain fry. Automatic break reminders for Claude Code."
   },
   "plugins": [
     {
       "name": "breather",
       "source": "./",
-      "description": "Automatic wellness monitoring for AI-assisted development. Tracks session duration, detects cognitive overload patterns, and makes breaks frictionless.",
+      "description": "The brake pedal your AI coding setup is missing. Tracks how long you've been going, nudges you to take breaks, and saves your context so stopping doesn't cost you 20 minutes.",
       "version": "0.1.0",
       "author": {
         "name": "Jesse de Gans"
       },
-      "keywords": ["wellness", "burnout", "breaks", "mental-health", "productivity"]
+      "keywords": ["burnout", "breaks", "pacing", "focus", "productivity"]
     }
   ]
 }

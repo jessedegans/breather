@@ -4,7 +4,7 @@ description: Use when the user asks "how am I doing", "session status", "how lon
 allowed-tools: Read, Bash
 ---
 
-# Check In - Session Wellness Review
+# Check In - Session Status
 
 Provide an honest, non-preachy assessment of the current session.
 
@@ -34,4 +34,4 @@ Provide an honest, non-preachy assessment of the current session.
 
 4. **If prompted by /loop** (not explicitly by the user), keep it to 1-2 sentences woven into whatever you're already doing. Don't make a separate announcement.
 
-5. **Never:** use guilt, be condescending, reference "self-care" or "wellness journey", or compare the user to statistics. Just state the numbers and make a practical suggestion.
+5. **Never:** use guilt, be condescending, reference "self-care" or "wellness", or compare the user to statistics. Just state the numbers and make a practical suggestion.
