@@ -1,3 +1,4 @@
 *.tmp
 .claude/*.local.md
 /docs/
+sync-cache.sh
