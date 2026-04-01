@@ -35,6 +35,9 @@ jq -n --arg sid "$SESSION_ID" --argjson ts "$NOW" --arg warn "$MARATHON_WARNING"
   last_full_break_ts: null,
   last_quick_break_ts: null,
   last_nudge_ts: 0,
+  nudge_pending: false,
+  nudge_tier: null,
+  nudge_ignored_count: 0,
   intention: null,
   pattern_warning: $warn
 }' > "$SESSION_FILE"
