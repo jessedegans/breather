@@ -102,6 +102,20 @@ All state lives in `$CLAUDE_PLUGIN_DATA` or `~/.local/share/breather/`:
 3. **Evidence-based.** Thresholds from cognitive load research, not vibes.
 4. **Never preachy.** Facts, suggestion, move on.
 
+### The nudge problem (and how we solve it)
+
+Here's the core tension: breather tells Claude "suggest a break," but Claude is an LLM optimizing to be helpful with your question. It can rationalize skipping the nudge -- "the user seems focused, I'll just answer." The very thing that makes AI coding addictive (it always wants to keep helping) works against the wellness intervention.
+
+We solve this in three layers:
+
+**1. Appeal to helpfulness, don't fight it.** Instead of "mention a break," the prompt says: "This user installed a break reminder because they know they won't stop on their own. You are their safety net. The most helpful thing you can do right now is suggest a break." This reframes the break as Claude's job, not an interruption to it.
+
+**2. Detect when Claude ignores it.** A Stop hook fires after every response, scans for evidence that the nudge was delivered (keywords like "breather:pause", "take a break", "20-20-20"). If it wasn't, we know.
+
+**3. Escalate.** First ignored nudge: stronger framing. Second: "you are working against what the user asked for." Third: mandatory pre-formatted break message that Claude must place at the start of its response.
+
+This is the hard problem in AI-native wellness tooling. You can't just show a popup -- the interface IS the AI, and the AI has opinions about what's helpful.
+
 ## The research behind it
 
 This isn't wellness theater. Every threshold is backed by research:
@@ -123,7 +137,6 @@ Planned but not yet implemented:
 - **Configurable thresholds** -- adjust nudge timing, status line colors via plugin settings
 - **Session history viewer** -- `/breather:history` to see your patterns
 - **Weekly wellness report** -- `/breather:weekly` for trend analysis
-- **Nudge enforcement** -- Stop hook to verify Claude actually delivers nudges (currently Claude can rationalize skipping them)
 - **Focus mode** -- temporarily disable nudges for deep work sprints with a hard time limit
 
 ## Why "breather"?
