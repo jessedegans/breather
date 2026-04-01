@@ -11,15 +11,21 @@
   "keywords": ["burnout", "breaks", "pacing", "focus", "productivity", "developer-experience"],
   "userConfig": {
     "show_prompt_count": {
-      "description": "Show prompt count in the status line (true/false)",
+      "type": "boolean",
+      "title": "Show prompt count",
+      "description": "Show prompt count in the status line",
       "sensitive": false
     },
     "show_velocity": {
-      "description": "Show prompts-per-minute rate in the status line (true/false)",
+      "type": "boolean",
+      "title": "Show velocity",
+      "description": "Show prompts-per-minute rate in the status line",
       "sensitive": false
     },
     "show_break_count": {
-      "description": "Show break count in the status line (true/false, default: true)",
+      "type": "boolean",
+      "title": "Show break count",
+      "description": "Show break count in the status line (default: true)",
       "sensitive": false
     }
   },
