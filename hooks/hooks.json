@@ -1,9 +1,4 @@
 {
-  "description": "Breather session monitoring hooks",
-  "statusLine": {
-    "type": "command",
-    "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/statusline.sh\""
-  },
   "hooks": {
     "SessionStart": [
       {
