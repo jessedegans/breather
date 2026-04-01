@@ -41,3 +41,8 @@ jq -n --arg sid "$SESSION_ID" --argjson ts "$NOW" --arg warn "$MARATHON_WARNING"
   intention: null,
   pattern_warning: $warn
 }' > "$SESSION_FILE"
+
+# Output context for Claude (stdout from command hooks gets injected)
+if [ "$MARATHON_WARNING" = "yesterday_marathons" ]; then
+  echo "Breather session started. Yesterday had multiple long sessions -- be mindful of pacing today."
+fi
