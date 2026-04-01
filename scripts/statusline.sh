@@ -62,14 +62,18 @@ fi
 
 SEP='\033[2m|\033[0m'
 
-# Always show: colored session timer
-printf '%b%dh %dm\033[0m' "$color" "$hours" "$minutes"
+# Always show: breather label + colored session timer
+printf '\033[2mbreather\033[0m %b%dh %dm\033[0m' "$color" "$hours" "$minutes"
 
 # Optional: break count
 if [ "$SHOW_BREAK_COUNT" = "true" ]; then
     TOTAL_BREAKS=$((FULL_BREAKS + QUICK_BREAKS))
     if [ "$TOTAL_BREAKS" -gt 0 ]; then
-        printf ' %b \033[37m%d+%d\033[0m' "$SEP" "$FULL_BREAKS" "$QUICK_BREAKS"
+        if [ "$QUICK_BREAKS" -gt 0 ]; then
+            printf ' %b \033[37m%d breaks + %d stretches\033[0m' "$SEP" "$FULL_BREAKS" "$QUICK_BREAKS"
+        else
+            printf ' %b \033[37m%d breaks\033[0m' "$SEP" "$FULL_BREAKS"
+        fi
     fi
 fi
 
