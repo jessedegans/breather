@@ -28,6 +28,5 @@
       "description": "Show break count in the status line (default: true)",
       "sensitive": false
     }
-  },
-  "hooks": "./hooks/hooks.json"
+  }
 }
