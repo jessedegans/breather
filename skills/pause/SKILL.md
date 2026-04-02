@@ -25,11 +25,7 @@ The user is taking a break. Your job: make resuming effortless so the break feel
    bash ${CLAUDE_PLUGIN_ROOT}/scripts/record-break.sh
    ```
 
-3. **Save a context snapshot** to `${CLAUDE_PLUGIN_DATA:-~/.local/share/breather}/last-context.md` containing:
-   - What the user was working on (1-2 sentences)
-   - Where they left off (specific file, function, or decision point)
-   - What the logical next step is
-   - Any open questions or blockers
+3. **Save a context snapshot** to `${CLAUDE_PLUGIN_DATA:-~/.local/share/breather}/last-context.md`. Write it as a natural paragraph that reconstructs the user's mental state -- not a structured template. It should read like a colleague's note to themselves: what they were doing, the specific point they stopped at (file, function, command), what they were about to do next, and anything unresolved. This is what /breather:back will read back to them, so write it in a way that takes zero effort to process.
 
 4. **Read daily stats** by running:
    ```bash

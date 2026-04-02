@@ -16,19 +16,19 @@ The user is back from a break. Your job: get them oriented fast so they don't ha
    source "${CLAUDE_PLUGIN_ROOT}/scripts/breather-lib.sh" && breather_read_all_sessions
    ```
 
-3. **Welcome them back briefly:**
+3. **Welcome them back in one natural paragraph.** Write it like you're talking to them, not filing a report. Reconstruct their mental state -- what was in their head when they stopped, what they were about to do next, and the one thing that matters most right now.
 
-   > Welcome back. Here's where you left off:
-   >
-   > **Working on:** [what they were doing]
-   > **Left off at:** [specific point]
-   > **Next step:** [what to do next]
-   >
-   > [Any open questions from before the break]
-   >
-   > Ready to pick up?
+   Good example:
+   > You were making the indexing pipeline crash-resilient. All 7 tasks are done, tests pass. Next up: run the end-to-end test (`make run-deps-semdex && make fetch && make index`), then write the ADR. The ADR is the last thing before this is merge-ready.
 
-Keep it scannable - bullet points or bold labels. They need to reload context, not read prose.
+   Bad example (too structured, requires parsing):
+   > **Working on:** BAC-977 Resilient Blue/Green Indexing Pipeline
+   > **Left off at:** All 7 implementation tasks done on feature/bac-977
+   > **Next step:** Test end-to-end, then ADR, then PR
+
+   The good version reads like a colleague catching you up in 10 seconds. The bad version reads like a JIRA ticket.
+
+   End with "Ready to pick up?" or similar.
 
 4. **Archive the context snapshot** so calling /back twice doesn't show stale context:
    ```bash
