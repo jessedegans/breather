@@ -28,26 +28,21 @@ NUDGE_IGNORED=$(jq -r '.nudge_ignored_count // 0' "$SESSION_FILE")
 NEW_COUNT=$((PROMPT_COUNT + 1))
 
 # --- Inactivity detection ---
-# Check gap since last prompt in THIS session
+# Check gap since last prompt in THIS session.
+# Important: gaps under 30 min are NOT breaks. The user is reading code,
+# reviewing diffs, thinking, or working in VS Code. Only long gaps matter.
 PROMPT_GAP_SEC=$((NOW - LAST_PROMPT_TS))
 PROMPT_GAP_MIN=$((PROMPT_GAP_SEC / 60))
 INACTIVITY_MSG=""
 
-if [ "$PROMPT_GAP_MIN" -ge 30 ] && [ "$LAST_PROMPT_TS" -gt 0 ]; then
-  # 30+ min gap = full break (auto-detected)
+if [ "$PROMPT_GAP_MIN" -ge 45 ] && [ "$LAST_PROMPT_TS" -gt 0 ]; then
+  # 45+ min gap = very likely a real break. Auto-count as full break.
   jq ".last_break_ts = $NOW | .full_breaks = (.full_breaks // 0) + 1 | .last_full_break_ts = $NOW" \
     "$SESSION_FILE" > "${SESSION_FILE}.tmp" && mv "${SESSION_FILE}.tmp" "$SESSION_FILE"
-  INACTIVITY_MSG="{\"systemMessage\": \"[breather] Looks like you stepped away for ${PROMPT_GAP_MIN} minutes -- counting that as a full break. Welcome back.\"}"
-elif [ "$PROMPT_GAP_MIN" -ge 5 ] && [ "$LAST_PROMPT_TS" -gt 0 ]; then
-  # 5-29 min gap = micro-break (auto-detected, partial reset)
-  CURRENT_BREAK_TS=$(jq -r '.last_break_ts // 0' "$SESSION_FILE")
-  NEW_BREAK_TS=$((CURRENT_BREAK_TS + 600))
-  if [ "$NEW_BREAK_TS" -gt "$NOW" ]; then
-    NEW_BREAK_TS=$NOW
-  fi
-  jq ".last_break_ts = $NEW_BREAK_TS | .quick_breaks = (.quick_breaks // 0) + 1 | .last_quick_break_ts = $NOW" \
-    "$SESSION_FILE" > "${SESSION_FILE}.tmp" && mv "${SESSION_FILE}.tmp" "$SESSION_FILE"
-  INACTIVITY_MSG="{\"systemMessage\": \"[breather] Looks like you stepped away for ${PROMPT_GAP_MIN} minutes -- counting that as a stretch.\"}"
+  INACTIVITY_MSG="{\"systemMessage\": \"[breather] ${PROMPT_GAP_MIN} minute gap -- counting that as a break.\"}"
+elif [ "$PROMPT_GAP_MIN" -ge 30 ] && [ "$LAST_PROMPT_TS" -gt 0 ]; then
+  # 30-44 min gap = ambiguous. Ask, don't assume.
+  INACTIVITY_MSG="{\"systemMessage\": \"[breather] ${PROMPT_GAP_MIN} minute gap since last prompt. Don't ask about it unless it comes up naturally. If the user mentions they took a break, count it with /breather:stretch. Otherwise assume they were reading or thinking -- that's still focused work, not a break.\"}"
 fi
 
 # Update prompt count and last_prompt_ts
