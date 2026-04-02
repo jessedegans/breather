@@ -1,21 +1,39 @@
 #!/bin/bash
-# Called by SessionStart hook -- records session start time and initializes state
+# Called by SessionStart hook -- creates session file, archives stale sessions
 set -euo pipefail
 
-STATE_DIR="${CLAUDE_PLUGIN_DATA:-${HOME}/.local/share/breather}"
-mkdir -p "$STATE_DIR"
+SCRIPT_DIR="$(dirname "$0")"
+source "$SCRIPT_DIR/breather-lib.sh"
 
-SESSION_FILE="$STATE_DIR/current-session.json"
-HISTORY_FILE="$STATE_DIR/session-history.jsonl"
+# Run v1 migration if needed
+breather_migrate_v1
 
 # Read session_id from stdin
 INPUT=$(cat)
-SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // "unknown"')
+BREATHER_SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // "unknown"')
+export BREATHER_SESSION_ID
 
-# Check yesterday's patterns for context
+HISTORY_FILE="$(breather_history_file)"
+SESSIONS_DIR="$(breather_sessions_dir)"
+
+# Archive any stale session files to history before creating fresh state
+NOW=$(date +%s)
+if compgen -G "$SESSIONS_DIR/*.json" > /dev/null 2>&1; then
+  for f in "$SESSIONS_DIR"/*.json; do
+    local_start=$(jq -r '.start_ts // 0' "$f" 2>/dev/null)
+    if breather_is_stale "$local_start"; then
+      local_elapsed=$(( (NOW - local_start) / 60 ))
+      if [ "$local_elapsed" -gt 1 ]; then
+        jq -c ". + {end_ts: $NOW, duration_min: $local_elapsed, date: \"$(date -Iseconds)\"}" "$f" >> "$HISTORY_FILE"
+      fi
+      rm -f "$f"
+    fi
+  done
+fi
+
+# Check yesterday's patterns
 MARATHON_WARNING=""
 if [ -f "$HISTORY_FILE" ]; then
-  # Count sessions over 90 min in the last 24 hours
   YESTERDAY=$(date -d '24 hours ago' +%s 2>/dev/null || date -v-24H +%s 2>/dev/null || echo 0)
   LONG_SESSIONS=$(jq -s "[.[] | select(.end_ts > $YESTERDAY and .duration_min > 90)] | length" "$HISTORY_FILE" 2>/dev/null || echo 0)
   if [ "$LONG_SESSIONS" -ge 2 ]; then
@@ -23,12 +41,13 @@ if [ -f "$HISTORY_FILE" ]; then
   fi
 fi
 
-# Initialize session state
-NOW=$(date +%s)
-jq -n --arg sid "$SESSION_ID" --argjson ts "$NOW" --arg warn "$MARATHON_WARNING" '{
+# Create fresh session file
+SESSION_FILE="$(breather_session_file "$BREATHER_SESSION_ID")"
+jq -n --arg sid "$BREATHER_SESSION_ID" --argjson ts "$NOW" --arg warn "$MARATHON_WARNING" '{
   session_id: $sid,
   start_ts: $ts,
   prompt_count: 0,
+  last_prompt_ts: $ts,
   full_breaks: 0,
   quick_breaks: 0,
   last_break_ts: $ts,
@@ -38,11 +57,13 @@ jq -n --arg sid "$SESSION_ID" --argjson ts "$NOW" --arg warn "$MARATHON_WARNING"
   nudge_pending: false,
   nudge_tier: null,
   nudge_ignored_count: 0,
+  break_committed_at: null,
+  break_committed_min: null,
   intention: null,
   pattern_warning: $warn
 }' > "$SESSION_FILE"
 
-# Output context for Claude (stdout from command hooks gets injected)
+# Output context for Claude
 if [ "$MARATHON_WARNING" = "yesterday_marathons" ]; then
   echo "Breather session started. Yesterday had multiple long sessions -- be mindful of pacing today."
 fi

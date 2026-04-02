@@ -1,24 +1,29 @@
 #!/bin/bash
-# Called by SessionEnd hook -- logs session to history
+# Called by SessionEnd hook -- archives session to history, cleans up
 set -euo pipefail
 
-STATE_DIR="${CLAUDE_PLUGIN_DATA:-${HOME}/.local/share/breather}"
-SESSION_FILE="$STATE_DIR/current-session.json"
-HISTORY_FILE="$STATE_DIR/session-history.jsonl"
+SCRIPT_DIR="$(dirname "$0")"
+source "$SCRIPT_DIR/breather-lib.sh"
+
+# Read session_id from stdin
+INPUT=$(cat)
+BREATHER_SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // "unknown"')
+export BREATHER_SESSION_ID
+
+SESSION_FILE="$(breather_session_file "$BREATHER_SESSION_ID")"
+HISTORY_FILE="$(breather_history_file)"
 
 [ -f "$SESSION_FILE" ] || exit 0
 
-START_TS=$(jq -r '.start_ts' "$SESSION_FILE")
+START_TS=$(jq -r '.start_ts // 0' "$SESSION_FILE")
 NOW=$(date +%s)
 ELAPSED_MIN=$(( (NOW - START_TS) / 60 ))
 
-# Normalize old field names: breaks_taken -> full_breaks (backward compat with old session files)
-if jq -e '.breaks_taken' "$SESSION_FILE" >/dev/null 2>&1 && ! jq -e '.full_breaks' "$SESSION_FILE" >/dev/null 2>&1; then
-  jq '.full_breaks = (.breaks_taken // 0) | .quick_breaks = (.quick_breaks // 0) | del(.breaks_taken)' "$SESSION_FILE" > "${SESSION_FILE}.tmp" && mv "${SESSION_FILE}.tmp" "$SESSION_FILE"
+# Only log sessions with meaningful duration (> 1 min)
+if [ "$ELAPSED_MIN" -gt 1 ]; then
+  jq -c ". + {end_ts: $NOW, duration_min: $ELAPSED_MIN, date: \"$(date -Iseconds)\"}" \
+    "$SESSION_FILE" >> "$HISTORY_FILE"
 fi
 
-# Append session summary to history
-jq -c ". + {end_ts: $NOW, duration_min: $ELAPSED_MIN, date: \"$(date -Iseconds)\"}" "$SESSION_FILE" >> "$HISTORY_FILE"
-
-# Clean up current session
+# Clean up session file
 rm -f "$SESSION_FILE"
