@@ -2,7 +2,6 @@
 name: pause
 description: Use when the user wants to take a full break, step away, save their context, or says "pause", "break", "stepping away", "I need to stop". Also use when breather check-ins suggest a break and the user agrees. Supports "break in X mins" for deferred breaks. For quick breaks ("brb", "grabbing coffee", "need a sec"), use /breather:stretch instead.
 argument-hint: optional reason or "in X mins" for deferred break
-allowed-tools: Read, Write, Bash
 ---
 
 # Pause - Save Context and Take a Break

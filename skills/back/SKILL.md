@@ -1,7 +1,6 @@
 ---
 name: back
 description: Use when the user returns from a break and says "I'm back", "back", "where was I", "what was I doing", "resume work".
-allowed-tools: Read, Bash
 ---
 
 # Resume - Restore Context After a Break

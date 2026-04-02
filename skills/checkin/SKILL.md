@@ -1,7 +1,6 @@
 ---
 name: checkin
 description: Use when the user asks "how am I doing", "session status", "how long have I been working", "check in", "checkin", "am I overdue for a break", or wants to know their current session stats.
-allowed-tools: Read, Bash
 ---
 
 # Check In - Session Status

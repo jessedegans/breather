@@ -1,7 +1,6 @@
 ---
 name: stretch
 description: Use when the user wants a quick break, says "stretch", "quick break", "brb", "grabbing coffee", "need a sec", or agrees to a micro-break suggestion.
-allowed-tools: Read, Bash
 ---
 
 # Stretch - Quick Break
