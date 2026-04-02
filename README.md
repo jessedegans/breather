@@ -19,28 +19,26 @@ Breather runs **automatically**, no discipline required. That's the point. If yo
 | **Daily fatigue tracking** | Tracks total AI work time across ALL your Claude Code sessions, not just one terminal |
 | **Status line** | `breather session: 45m \| today: 3h 12m \| 1 break` -- session time is info, daily total goes green/yellow/red |
 | **Smart nudges** | Weaves break suggestions into Claude's responses at 25/50/90 min thresholds based on daily total |
-| **Inactivity detection** | 5+ min gap = auto micro-break, 30+ min = full break. No commands needed. |
+| **Inactivity detection** | Long gaps (30+ min) between prompts are detected as breaks automatically. No commands needed. |
 | **Velocity detection** | Flags rapid-fire prompting (5+ prompts/min) as a sign of reactive coding |
 | **Overnight reset** | 8+ hour gap = fresh start. Yesterday's fatigue doesn't carry over. |
-| **Session logging** | Logs every session to JSONL so you can see your patterns over time |
+| **Session logging** | Logs every session to JSONL for future pattern analysis |
 
 ### When you're ready to stop (or stretch)
 
 | Command | What it does |
 |---------|-------------|
 | `/breather:stretch` | Quick break. No context saving, no ceremony. Partial fatigue reset (+10 min). |
-| `/breather:pause` | Full break. Saves YOUR mental context (what you were doing, where you left off, what's next). Fully resets the fatigue clock. Also supports "break in 10 mins" for deferred breaks. |
+| `/breather:pause` | Full break. Saves YOUR mental context (what you were doing, where you left off, what's next). Fully resets the fatigue clock. |
 | `/breather:back` | Restores your context instantly. No ramp-up time. |
 | `/breather:checkin` | Session + daily stats. Honest numbers, no guilt. |
 | `/breather:reflect` | End-of-session summary: what you shipped, open threads, weekly trends. |
 
 ### You don't need to remember commands
 
-Breather detects when you step away automatically. If there's a 5+ minute gap between prompts (in any session), it counts as a break. When you come back, Claude just says "looks like you stepped away for 12 minutes -- counting that as a stretch."
+Breather detects long gaps between prompts automatically. If you step away for 45+ minutes, it counts as a break -- no commands needed.
 
-For 30+ minute gaps, it counts as a full break. No commands needed for the common case -- you just stop typing and breather notices.
-
-`/breather:pause` is there for when you want the context-saving full stop (so `/breather:back` can restore exactly where you were).
+`/breather:pause` is there for when you want the context-saving full stop (so `/breather:back` can restore exactly where you were). For shorter breaks, `/breather:stretch` is a quick one-liner.
 
 ## The key insight
 
@@ -72,12 +70,6 @@ Based on **daily total since last break** across all sessions:
 
 Minimum 10 minutes between nudges. One nudge per response max.
 
-### Break commitment
-
-Tell Claude "break in 10 minutes" and breather records it. 2-3 minutes before your committed time, Claude mentions a good stopping point. At the time, the status line shows yellow "break time" until you actually break.
-
-No countdown timer -- research shows visible countdowns induce stress and degrade the work quality we're trying to protect (Waugh et al. 2022).
-
 ## Install
 
 ```bash
@@ -85,15 +77,15 @@ No countdown timer -- research shows visible countdowns induce stress and degrad
 /plugin install breather@breather
 ```
 
-### Optional: status line
+### First-time setup
 
-To enable the always-visible session timer at the bottom of your terminal:
+After installing, run:
 
 ```
-/breather:setup-statusline
+/breather:setup
 ```
 
-One-time setup. Restart Claude Code after running it.
+This walks you through one-time setup: enables the status line, gives a quick tour of what breather does, and makes sure everything is working. Takes about 30 seconds. Restart Claude Code after setup.
 
 ## State and storage
 
@@ -145,6 +137,7 @@ This isn't vibes-based. Every threshold is backed by research:
 
 ## Roadmap
 
+- **Break commitment** -- "break in 10 minutes" with gentle pre-notification and statusline reminder (no countdown -- research shows countdowns induce stress)
 - **Configurable thresholds** -- adjust nudge timing, status line colors via plugin settings
 - **Session history viewer** -- `/breather:history` to see your patterns
 - **Weekly report** -- `/breather:weekly` for trend analysis
