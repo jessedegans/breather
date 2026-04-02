@@ -6,32 +6,30 @@ allowed-tools: Read, Bash
 
 # Check In - Session Status
 
-Provide an honest, non-preachy assessment of the current session.
+Provide an honest, non-preachy assessment of the current session AND daily totals.
 
 ## Steps
 
-1. **Read session state** from `${CLAUDE_PLUGIN_DATA:-~/.local/share/breather}/current-session.json`
+1. **Read this session's state** from `${CLAUDE_PLUGIN_DATA:-~/.local/share/breather}/sessions/` (find this session's file by session_id, or read the most recent one).
 
-2. **Calculate key metrics:**
-   - Total session duration (from start_ts)
-   - Time since last break (from last_break_ts)
-   - Prompt count
-   - Full breaks (full_breaks) and stretches (quick_breaks)
+2. **Read all session files** to compute daily totals. Run:
+   ```bash
+   source "${CLAUDE_PLUGIN_ROOT}/scripts/breather-lib.sh" && breather_read_all_sessions
+   ```
+   This returns JSON with: today_total_min, since_last_break_min, total_breaks, total_prompts, active_sessions.
 
-3. **Assess the session** and respond with a brief status. Tone depends on the numbers:
+3. **Present both session and daily stats.** Tone depends on the daily numbers:
 
-   **Under 50 min, breaks taken:** Just the facts, positive.
-   > Session: 42m, 18 prompts, 1 full break, 3 stretches. You're in good shape.
+   **Under 50 min today, breaks taken:** Just the facts, positive.
+   > This session: 22m, 12 prompts. Today: 42m total, 1 break. You're in good shape.
 
-   **50-90 min, no break:** Neutral observation.
-   > Session: 1h 5m, 28 prompts, no breaks yet. Might want to think about one soon. /breather:pause saves your spot.
+   **50-90 min today, no break:** Neutral observation.
+   > This session: 35m, 18 prompts. Today: 1h 5m across 2 sessions, no breaks yet. Might want to think about one soon. /breather:pause saves your spot.
 
-   **90+ min, no break:** Direct but not preachy.
-   > Session: 1h 35m, 42 prompts, 0 breaks. That's past the point where research shows error rates start climbing. Your brain is working harder than you think. /breather:pause saves your context if you want to step away.
+   **90+ min today, no break:** Direct but not preachy.
+   > This session: 40m, 24 prompts. Today: 1h 35m across 3 sessions, 0 breaks. That's past the point where error rates start climbing. /breather:pause saves your context if you want to step away.
 
-   **120+ min, no break:** Matter-of-fact urgency.
-   > Session: 2h 10m, 58 prompts, 0 breaks. You've been in this chair for over 2 hours straight. The code will be here when you get back. /breather:pause
+   **120+ min today, no break:** Matter-of-fact urgency.
+   > This session: 55m. Today: 2h 10m across 2 sessions, 0 breaks. You've been at this for over 2 hours. The code will be here when you get back. /breather:pause
 
-4. **If prompted by /loop** (not explicitly by the user), keep it to 1-2 sentences woven into whatever you're already doing. Don't make a separate announcement.
-
-5. **Never:** use guilt, be condescending, reference "self-care" or "wellness", or compare the user to statistics. Just state the numbers and make a practical suggestion.
+4. **Never:** use guilt, be condescending, reference "self-care" or "wellness", or compare the user to statistics. Just state the numbers and make a practical suggestion.

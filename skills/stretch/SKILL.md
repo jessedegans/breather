@@ -15,7 +15,11 @@ The user is taking a quick break - not leaving, just stepping away from the scre
    bash ${CLAUDE_PLUGIN_ROOT}/scripts/record-stretch.sh
    ```
 
-2. **Read session state** from `${CLAUDE_PLUGIN_DATA:-~/.local/share/breather}/current-session.json` to get session duration.
+2. **Read daily stats** by running:
+   ```bash
+   source "${CLAUDE_PLUGIN_ROOT}/scripts/breather-lib.sh" && breather_read_all_sessions
+   ```
+   Use `today_total_min` for the duration.
 
 3. **Respond in one line.** No context saving, no ceremony. Something like:
 

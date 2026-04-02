@@ -12,7 +12,10 @@ The user is back from a break. Your job: get them oriented fast so they don't ha
 
 1. **Read the context snapshot** from `${CLAUDE_PLUGIN_DATA:-~/.local/share/breather}/last-context.md`. If the file doesn't exist, skip to step 3 and instead say: "No saved context from a previous pause. What are you picking up today?"
 
-2. **Read session state** from `${CLAUDE_PLUGIN_DATA:-~/.local/share/breather}/current-session.json` to check how the session is going.
+2. **Read daily stats** by running:
+   ```bash
+   source "${CLAUDE_PLUGIN_ROOT}/scripts/breather-lib.sh" && breather_read_all_sessions
+   ```
 
 3. **Welcome them back briefly:**
 
