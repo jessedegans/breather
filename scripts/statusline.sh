@@ -1,94 +1,95 @@
 #!/bin/bash
-# Breather status line -- single-line session indicator
-# Intentionally minimal: only shows what breather uniquely knows.
-# Won't conflict with other statusline plugins (model, git, cost, context).
+# Breather status line -- session + daily fatigue indicator
+# Format: breather  session: 45m | today: 3h 12m | 1 break
 #
-# Configurable via plugin userConfig:
-#   show_prompt_count  - show prompt count (default: false)
-#   show_velocity      - show prompts/min rate (default: false)
-#   show_break_count   - show break count (default: true)
+# Session time is informational (dim). Daily total is the fatigue number (colored).
+# If nudges are being ignored: "take a break" replaces break count.
+# If break commitment expired: "break time" replaces break count.
+
+SCRIPT_DIR="$(dirname "$0")"
+source "$SCRIPT_DIR/breather-lib.sh"
 
 stdin_data=$(cat)
 
-# User-configurable options (via CLAUDE_PLUGIN_OPTION_* env vars)
-SHOW_PROMPT_COUNT="${CLAUDE_PLUGIN_OPTION_SHOW_PROMPT_COUNT:-false}"
-SHOW_VELOCITY="${CLAUDE_PLUGIN_OPTION_SHOW_VELOCITY:-false}"
+# User-configurable options
 SHOW_BREAK_COUNT="${CLAUDE_PLUGIN_OPTION_SHOW_BREAK_COUNT:-true}"
 
-# Session duration from Claude Code
-duration_ms=$(echo "$stdin_data" | jq -r '.cost.total_duration_ms // 0' 2>/dev/null)
-: "${duration_ms:=0}"
+# --- Session time (this conversation) ---
+# Try our own session file first, fall back to Claude Code's timer
+BREATHER_SESSION_ID="${BREATHER_SESSION_ID:-unknown}"
+SESSION_FILE="$(breather_session_file "$BREATHER_SESSION_ID")"
 
-if [ "$duration_ms" -le 0 ] 2>/dev/null; then
-    exit 0
-fi
-
-total_sec=$((duration_ms / 1000))
-hours=$((total_sec / 3600))
-minutes=$(((total_sec % 3600) / 60))
-elapsed_min=$((total_sec / 60))
-
-# Breather session state
-STATE_DIR="${CLAUDE_PLUGIN_DATA:-${HOME}/.local/share/breather}"
-SESSION_FILE="$STATE_DIR/current-session.json"
-FULL_BREAKS=0
-QUICK_BREAKS=0
-PROMPT_COUNT=0
-SINCE_BREAK_MIN=0
+NOW=$(date +%s)
+session_hours=0
+session_minutes=0
 
 if [ -f "$SESSION_FILE" ]; then
-    IFS=$'\t' read -r FULL_BREAKS QUICK_BREAKS LAST_BREAK_TS PROMPT_COUNT < <(
-        jq -r '[(.full_breaks // 0), (.quick_breaks // 0), (.last_break_ts // 0), (.prompt_count // 0)] | @tsv' \
-        "$SESSION_FILE" 2>/dev/null
-    )
-    : "${FULL_BREAKS:=0}"
-    : "${QUICK_BREAKS:=0}"
-    : "${LAST_BREAK_TS:=0}"
-    : "${PROMPT_COUNT:=0}"
-    if [ "$LAST_BREAK_TS" -gt 0 ] 2>/dev/null; then
-        NOW=$(date +%s)
-        SINCE_BREAK_MIN=$(( (NOW - LAST_BREAK_TS) / 60 ))
-    fi
+  START_TS=$(jq -r '.start_ts // 0' "$SESSION_FILE" 2>/dev/null)
+  if [ "$START_TS" -gt 0 ] 2>/dev/null && ! breather_is_stale "$START_TS"; then
+    session_sec=$((NOW - START_TS))
+    session_hours=$((session_sec / 3600))
+    session_minutes=$(((session_sec % 3600) / 60))
+  fi
+else
+  # Fallback: Claude Code's cumulative timer
+  duration_ms=$(echo "$stdin_data" | jq -r '.cost.total_duration_ms // 0' 2>/dev/null)
+  : "${duration_ms:=0}"
+  if [ "$duration_ms" -gt 0 ] 2>/dev/null; then
+    total_sec=$((duration_ms / 1000))
+    session_hours=$((total_sec / 3600))
+    session_minutes=$(((total_sec % 3600) / 60))
+  fi
 fi
 
-# Timer colored by time since last break (the fatigue clock)
+# --- Global daily stats ---
+GLOBAL=$(breather_read_all_sessions 2>/dev/null || echo '{}')
+TODAY_TOTAL_MIN=$(echo "$GLOBAL" | jq -r '.today_total_min // 0' 2>/dev/null)
+: "${TODAY_TOTAL_MIN:=0}"
+SINCE_BREAK_MIN=$(echo "$GLOBAL" | jq -r '.since_last_break_min // 0' 2>/dev/null)
+: "${SINCE_BREAK_MIN:=0}"
+TOTAL_BREAKS=$(echo "$GLOBAL" | jq -r '.total_breaks // 0' 2>/dev/null)
+: "${TOTAL_BREAKS:=0}"
+ANY_NUDGE_IGNORED=$(echo "$GLOBAL" | jq -r '.any_nudge_ignored // false' 2>/dev/null)
+BREAK_COMMITTED_AT=$(echo "$GLOBAL" | jq -r '.break_committed_at // "null"' 2>/dev/null)
+BREAK_COMMITTED_MIN=$(echo "$GLOBAL" | jq -r '.break_committed_min // "null"' 2>/dev/null)
+
+today_hours=$((TODAY_TOTAL_MIN / 60))
+today_minutes=$((TODAY_TOTAL_MIN % 60))
+
+# --- Daily total color (the fatigue indicator) ---
 if [ "$SINCE_BREAK_MIN" -ge 90 ]; then
-    color='\033[31m'  # Red
+  today_color='\033[31m'  # Red
 elif [ "$SINCE_BREAK_MIN" -ge 50 ]; then
-    color='\033[33m'  # Yellow
+  today_color='\033[33m'  # Yellow
 else
-    color='\033[32m'  # Green
+  today_color='\033[32m'  # Green
 fi
 
 SEP='\033[2m|\033[0m'
 
-# Always show: breather label + colored session timer
-printf '\033[2mbreather\033[0m %b%dh %dm\033[0m' "$color" "$hours" "$minutes"
+# --- Build the line ---
+# breather  session: Xh Ym | today: Xh Ym | N breaks
+printf '\033[2mbreather\033[0m  \033[2msession: %dh %dm\033[0m' "$session_hours" "$session_minutes"
+printf ' %b %btoday: %dh %dm\033[0m' "$SEP" "$today_color" "$today_hours" "$today_minutes"
 
-# Optional: break count
+# --- Right-side: break count OR status message ---
 if [ "$SHOW_BREAK_COUNT" = "true" ]; then
-    TOTAL_BREAKS=$((FULL_BREAKS + QUICK_BREAKS))
-    if [ "$TOTAL_BREAKS" -gt 0 ]; then
-        if [ "$QUICK_BREAKS" -gt 0 ]; then
-            printf ' %b \033[37m%d breaks + %d stretches\033[0m' "$SEP" "$FULL_BREAKS" "$QUICK_BREAKS"
-        else
-            printf ' %b \033[37m%d breaks\033[0m' "$SEP" "$FULL_BREAKS"
-        fi
+  # Check for break commitment expired
+  SHOW_BREAK_TIME=false
+  if [ "$BREAK_COMMITTED_AT" != "null" ] && [ "$BREAK_COMMITTED_MIN" != "null" ]; then
+    BREAK_DUE_AT=$((BREAK_COMMITTED_AT + BREAK_COMMITTED_MIN * 60))
+    if [ "$NOW" -ge "$BREAK_DUE_AT" ]; then
+      SHOW_BREAK_TIME=true
     fi
-fi
+  fi
 
-# Optional: prompt count
-if [ "$SHOW_PROMPT_COUNT" = "true" ] && [ "$PROMPT_COUNT" -gt 0 ] 2>/dev/null; then
-    printf ' %b \033[37m%d prompts\033[0m' "$SEP" "$PROMPT_COUNT"
-fi
-
-# Optional: velocity (prompts/min)
-if [ "$SHOW_VELOCITY" = "true" ] && [ "$elapsed_min" -gt 0 ] 2>/dev/null; then
-    velocity=$((PROMPT_COUNT / elapsed_min))
-    if [ "$velocity" -ge 5 ]; then
-        # Red velocity -- reactive mode
-        printf ' %b \033[31m%d/min\033[0m' "$SEP" "$velocity"
-    elif [ "$velocity" -ge 2 ]; then
-        printf ' %b \033[37m%d/min\033[0m' "$SEP" "$velocity"
-    fi
+  if [ "$ANY_NUDGE_IGNORED" = "true" ]; then
+    # Nudges being ignored -- bypass Claude, talk to user directly
+    printf ' %b \033[33mtake a break\033[0m' "$SEP"
+  elif [ "$SHOW_BREAK_TIME" = "true" ]; then
+    # Break commitment time passed
+    printf ' %b \033[33mbreak time\033[0m' "$SEP"
+  elif [ "$TOTAL_BREAKS" -gt 0 ]; then
+    printf ' %b \033[37m%d break%s\033[0m' "$SEP" "$TOTAL_BREAKS" "$([ "$TOTAL_BREAKS" -ne 1 ] && echo 's')"
+  fi
 fi
