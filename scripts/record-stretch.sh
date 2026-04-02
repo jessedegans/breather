@@ -1,21 +1,24 @@
 #!/bin/bash
-# Called when user takes a quick stretch break -- partial fatigue reset
+# Called when user takes a quick stretch -- partial fatigue reset (+10 min)
 set -euo pipefail
 
-STATE_DIR="${CLAUDE_PLUGIN_DATA:-${HOME}/.local/share/breather}"
-SESSION_FILE="$STATE_DIR/current-session.json"
+SCRIPT_DIR="$(dirname "$0")"
+source "$SCRIPT_DIR/breather-lib.sh"
 
-[ -f "$SESSION_FILE" ] || exit 0
+# Try to get session_id from stdin, fall back to env
+INPUT=$(cat 2>/dev/null || echo '{}')
+BREATHER_SESSION_ID="${BREATHER_SESSION_ID:-$(echo "$INPUT" | jq -r '.session_id // "unknown"' 2>/dev/null)}"
+export BREATHER_SESSION_ID
 
+SESSION_FILE="$(breather_ensure_session "$BREATHER_SESSION_ID")"
 NOW=$(date +%s)
-# Advance last_break_ts by 10 minutes (partial reset, not full)
-# This gives ~10 more minutes before the next nudge tier kicks in
-PARTIAL_RESET=$((NOW - $(jq -r '.last_break_ts' "$SESSION_FILE") ))
-if [ "$PARTIAL_RESET" -gt 600 ]; then
-  # Only advance by 10 min worth, don't fully reset
-  NEW_BREAK_TS=$(( $(jq -r '.last_break_ts' "$SESSION_FILE") + 600 ))
-else
-  NEW_BREAK_TS=$(jq -r '.last_break_ts' "$SESSION_FILE")
+
+# Partial reset: advance last_break_ts by 10 minutes (600 sec)
+CURRENT_BREAK_TS=$(jq -r '.last_break_ts // 0' "$SESSION_FILE")
+NEW_BREAK_TS=$((CURRENT_BREAK_TS + 600))
+if [ "$NEW_BREAK_TS" -gt "$NOW" ]; then
+  NEW_BREAK_TS=$NOW
 fi
 
-jq ".quick_breaks = (.quick_breaks // 0) + 1 | .last_quick_break_ts = $NOW | .last_break_ts = $NEW_BREAK_TS" "$SESSION_FILE" > "${SESSION_FILE}.tmp" && mv "${SESSION_FILE}.tmp" "$SESSION_FILE"
+jq ".quick_breaks = (.quick_breaks // 0) + 1 | .last_quick_break_ts = $NOW | .last_break_ts = $NEW_BREAK_TS" \
+  "$SESSION_FILE" > "${SESSION_FILE}.tmp" && mv "${SESSION_FILE}.tmp" "$SESSION_FILE"
