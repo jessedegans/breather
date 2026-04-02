@@ -10,7 +10,7 @@ Sound familiar? Breather is the brake pedal your AI coding setup is missing.
 
 ## How it works
 
-Breather runs **automatically**, no discipline required. That's the point. If you had the discipline to take breaks, you wouldn't need this.
+After a quick one-time setup (`/breather:setup`), breather runs **automatically** -- no discipline required. That's the point. If you had the discipline to take breaks, you wouldn't need this.
 
 ### Always on (zero effort)
 
