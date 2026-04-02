@@ -92,7 +92,7 @@ elif [ "$SINCE_BREAK_MIN" -ge 50 ]; then
 # 25+ min -- micro-break
 elif [ "$SINCE_BREAK_MIN" -ge 25 ]; then
   TIER="micro"
-  NUDGE='{"systemMessage": "[breather] '"$SINCE_BREAK_MIN"' minutes in. Quick one: at the end of your response, add \"Quick 20-20-20: look at something 6 meters away for 20 seconds.\" It costs nothing and the user'\''s eyes will thank them. This is the kind of small thing that makes working with you feel human."}'
+  NUDGE='{"systemMessage": "[breather] '"$SINCE_BREAK_MIN"' minutes in. Quick one: at the end of your response, add \"Eyes off screen -- look at something 6 meters away for 20 seconds.\" It costs nothing and the user'\''s eyes will thank them. This is the kind of small thing that makes working with you feel human."}'
 fi
 
 # Record nudge state and emit
