@@ -1,6 +1,6 @@
 {
   "name": "breather",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "The brake pedal your AI coding setup is missing. Tracks how long you've been going, nudges you to take breaks, and saves your context so stopping doesn't cost you 20 minutes of 'where was I?'",
   "author": {
     "name": "Jesse de Gans",
