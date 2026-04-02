@@ -30,7 +30,7 @@ After a quick one-time setup (`/breather:setup`), breather runs **automatically*
 |---------|-------------|
 | `/breather:stretch` | Quick break. No context saving, no ceremony. Partial fatigue reset (+10 min). |
 | `/breather:pause` | Full break. Saves YOUR mental context (what you were doing, where you left off, what's next). Fully resets the fatigue clock. |
-| `/breather:back` | Restores your context instantly. No ramp-up time. |
+| `/breather:back` | Restores YOUR mental context -- not a code dump, but what you need to know to pick up where you left off. 5 seconds to get back in flow. |
 | `/breather:checkin` | Session + daily stats. Honest numbers, no guilt. |
 | `/breather:reflect` | End-of-session summary: what you shipped, open threads, weekly trends. |
 
@@ -39,6 +39,20 @@ After a quick one-time setup (`/breather:setup`), breather runs **automatically*
 Breather detects long gaps between prompts automatically. If you step away for 45+ minutes, it counts as a break -- no commands needed.
 
 `/breather:pause` is there for when you want the context-saving full stop (so `/breather:back` can restore exactly where you were). For shorter breaks, `/breather:stretch` is a quick one-liner.
+
+## The research behind it
+
+This isn't vibes-based. Every threshold is backed by research:
+
+| Finding | Source |
+|---------|--------|
+| "AI brain fry" -- AI oversight predicts 12% more mental fatigue | [HBR/BCG, 2026](https://hbr.org/2026/03/when-using-ai-leads-to-brain-fry) |
+| Power users burn out first -- not from pressure, but from not stopping | [TechCrunch/UC Berkeley, 2026](https://techcrunch.com/2026/02/09/the-first-signs-of-burnout-are-coming-from-the-people-who-embrace-ai-the-most/) |
+| 96% of frequent AI users work evenings/weekends monthly | [Scientific American](https://www.scientificamerican.com/article/why-developers-using-ai-are-working-longer-hours/) |
+| Devs were 19% slower with AI but thought they were 20% faster | [METR study](https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/) |
+| Visible countdowns induce stress and degrade executive function | [Waugh et al. 2022, Acta Psychologica](https://doi.org/10.1016/j.actpsy.2022.103656) |
+| 23 minutes to regain focus after an interruption | [Gloria Mark, UC Irvine](https://ics.uci.edu/~gmark/chi08-mark.pdf) |
+| Error rates spike after 2h of continuous deep work | Cognitive load research (Sweller, 1988) |
 
 ## The key insight
 
@@ -120,20 +134,6 @@ We solve this in three layers:
 **3. Bypass to status line.** After 2 ignored nudges, stop trying to convince Claude. The status line shows yellow "take a break" where the break count normally sits. The user sees it every response, no LLM cooperation needed.
 
 This is the hard problem in AI-native break reminders. You can't just show a popup -- the interface IS the AI, and the AI has opinions about what's helpful.
-
-## The research behind it
-
-This isn't vibes-based. Every threshold is backed by research:
-
-| Finding | Source |
-|---------|--------|
-| "AI brain fry" -- AI oversight predicts 12% more mental fatigue | [HBR/BCG, 2026](https://hbr.org/2026/03/when-using-ai-leads-to-brain-fry) |
-| Power users burn out first -- not from pressure, but from not stopping | [TechCrunch/UC Berkeley, 2026](https://techcrunch.com/2026/02/09/the-first-signs-of-burnout-are-coming-from-the-people-who-embrace-ai-the-most/) |
-| 96% of frequent AI users work evenings/weekends monthly | [Scientific American](https://www.scientificamerican.com/article/why-developers-using-ai-are-working-longer-hours/) |
-| Devs were 19% slower with AI but thought they were 20% faster | [METR study](https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/) |
-| Visible countdowns induce stress and degrade executive function | [Waugh et al. 2022, Acta Psychologica](https://doi.org/10.1016/j.actpsy.2022.103656) |
-| 23 minutes to regain focus after an interruption | [Gloria Mark, UC Irvine](https://ics.uci.edu/~gmark/chi08-mark.pdf) |
-| Error rates spike after 2h of continuous deep work | Cognitive load research (Sweller, 1988) |
 
 ## Roadmap
 
