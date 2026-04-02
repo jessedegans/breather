@@ -10,14 +10,14 @@ Sound familiar? Breather is the brake pedal your AI coding setup is missing.
 
 ## How it works
 
-After a quick one-time setup (`/breather:setup`), breather runs **automatically** -- no discipline required. That's the point. If you had the discipline to take breaks, you wouldn't need this.
+After a quick one-time setup (`/breather:setup`), breather runs **automatically**. No discipline required. That's the point. If you had the discipline to take breaks, you wouldn't need this.
 
 ### Always on (zero effort)
 
 | Feature | What it does |
 |---------|-------------|
 | **Daily fatigue tracking** | Tracks total AI work time across ALL your Claude Code sessions, not just one terminal |
-| **Status line** | `breather session: 45m \| today: 3h 12m \| 1 break` -- session time is info, daily total goes green/yellow/red |
+| **Status line** | `breather session: 45m \| today: 3h 12m \| 1 break`. Session time is info, daily total goes green/yellow/red. |
 | **Smart nudges** | Weaves break suggestions into Claude's responses at 25/50/90 min thresholds based on daily total |
 | **Inactivity detection** | Long gaps (30+ min) between prompts are detected as breaks automatically. No commands needed. |
 | **Velocity detection** | Flags rapid-fire prompting (5+ prompts/min) as a sign of reactive coding |
@@ -30,13 +30,13 @@ After a quick one-time setup (`/breather:setup`), breather runs **automatically*
 |---------|-------------|
 | `/breather:stretch` | Quick break. No context saving, no ceremony. Partial fatigue reset (+10 min). |
 | `/breather:pause` | Full break. Saves YOUR mental context (what you were doing, where you left off, what's next). Fully resets the fatigue clock. |
-| `/breather:back` | Restores YOUR mental context -- not a code dump, but what you need to know to pick up where you left off. 5 seconds to get back in flow. |
+| `/breather:back` | Restores YOUR mental context. Not a code dump, but what you need to know to pick up where you left off. 5 seconds to get back in flow. |
 | `/breather:checkin` | Session + daily stats. Honest numbers, no guilt. |
 | `/breather:reflect` | End-of-session summary: what you shipped, open threads, weekly trends. |
 
 ### You don't need to remember commands
 
-Breather detects long gaps between prompts automatically. If you step away for 45+ minutes, it counts as a break -- no commands needed.
+Breather detects long gaps between prompts automatically. If you step away for 45+ minutes, it counts as a break. No commands needed.
 
 `/breather:pause` is there for when you want the context-saving full stop (so `/breather:back` can restore exactly where you were). For shorter breaks, `/breather:stretch` is a quick one-liner.
 
@@ -46,8 +46,8 @@ This isn't vibes-based. Every threshold is backed by research:
 
 | Finding | Source |
 |---------|--------|
-| "AI brain fry" -- AI oversight predicts 12% more mental fatigue | [HBR/BCG, 2026](https://hbr.org/2026/03/when-using-ai-leads-to-brain-fry) |
-| Power users burn out first -- not from pressure, but from not stopping | [TechCrunch/UC Berkeley, 2026](https://techcrunch.com/2026/02/09/the-first-signs-of-burnout-are-coming-from-the-people-who-embrace-ai-the-most/) |
+| "AI brain fry": AI oversight predicts 12% more mental fatigue | [HBR/BCG, 2026](https://hbr.org/2026/03/when-using-ai-leads-to-brain-fry) |
+| Power users burn out first, not from pressure, but from not stopping | [TechCrunch/UC Berkeley, 2026](https://techcrunch.com/2026/02/09/the-first-signs-of-burnout-are-coming-from-the-people-who-embrace-ai-the-most/) |
 | 96% of frequent AI users work evenings/weekends monthly | [Scientific American](https://www.scientificamerican.com/article/why-developers-using-ai-are-working-longer-hours/) |
 | Devs were 19% slower with AI but thought they were 20% faster | [METR study](https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/) |
 | Visible countdowns induce stress and degrade executive function | [Waugh et al. 2022, Acta Psychologica](https://doi.org/10.1016/j.actpsy.2022.103656) |
@@ -77,10 +77,10 @@ Based on **daily total since last break** across all sessions:
 
 | Time | What happens |
 |------|-------------|
-| **25 min** | "Eyes off screen -- look at something 6 meters away for 20 seconds." |
+| **25 min** | "Eyes off screen. Look at something 6 meters away for 20 seconds." |
 | **50 min** | Mentions the time naturally, suggests `/breather:stretch` |
 | **90 min** | Directly suggests `/breather:pause` with context saving |
-| **5+ prompts/min** | "We're moving fast -- right direction?" |
+| **5+ prompts/min** | "We're moving fast. Right direction?" |
 
 Minimum 10 minutes between nudges. One nudge per response max.
 
@@ -123,7 +123,7 @@ All state lives in `$CLAUDE_PLUGIN_DATA` or `~/.local/share/breather/`:
 
 ### The nudge problem (and how we solve it)
 
-Here's the core tension: breather tells Claude "suggest a break," but Claude is an LLM optimizing to be helpful with your question. It can rationalize skipping the nudge -- "the user seems focused, I'll just answer." The very thing that makes AI coding addictive (it always wants to keep helping) works against the break suggestion.
+Here's the core tension: breather tells Claude "suggest a break," but Claude is an LLM optimizing to be helpful with your question. It can rationalize skipping the nudge. "The user seems focused, I'll just answer." The very thing that makes AI coding addictive (it always wants to keep helping) works against the break suggestion.
 
 We solve this in three layers:
 
@@ -133,15 +133,15 @@ We solve this in three layers:
 
 **3. Bypass to status line.** After 2 ignored nudges, stop trying to convince Claude. The status line shows yellow "take a break" where the break count normally sits. The user sees it every response, no LLM cooperation needed.
 
-This is the hard problem in AI-native break reminders. You can't just show a popup -- the interface IS the AI, and the AI has opinions about what's helpful.
+This is the hard problem in AI-native break reminders. You can't just show a popup. The interface IS the AI, and the AI has opinions about what's helpful.
 
 ## Roadmap
 
-- **Break commitment** -- "break in 10 minutes" with gentle pre-notification and statusline reminder (no countdown -- research shows countdowns induce stress)
-- **Configurable thresholds** -- adjust nudge timing, status line colors via plugin settings
-- **Session history viewer** -- `/breather:history` to see your patterns
-- **Weekly report** -- `/breather:weekly` for trend analysis
-- **Focus mode** -- temporarily disable nudges for deep work sprints with a hard time limit
+- **Break commitment**: tell Claude "break in 10 minutes" and get a gentle reminder when it's time (no countdown, research shows those induce stress)
+- **Configurable thresholds**: adjust nudge timing and status line colors via plugin settings
+- **Session history viewer**: `/breather:history` to see your patterns
+- **Weekly report**: `/breather:weekly` for trend analysis
+- **Focus mode**: temporarily disable nudges for deep work sprints with a hard time limit
 
 ## Why "breather"?
 
