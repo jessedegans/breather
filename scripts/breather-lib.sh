@@ -129,10 +129,16 @@ breather_read_all_sessions() {
   local last_prompt_ts
   last_prompt_ts=$(echo "$merged" | jq '[.[].last_prompt_ts // 0] | max')
 
-  # Check for overnight reset: if last break is 8+ hours ago, reset
+  # Check for overnight reset based on PROMPT ACTIVITY, not break age.
+  # If the last prompt across all sessions was 8+ hours ago, this is a new day.
+  # But if prompts are recent, the session is active regardless of how old
+  # last_break_ts is. A 9-hour marathon should still show 9h since last break.
+  local since_last_prompt_sec=$((now - last_prompt_ts))
   local since_last_break_sec=$((now - last_break_ts))
   local since_last_break_min
-  if [ "$since_last_break_sec" -ge "$stale_threshold" ]; then
+
+  if [ "$since_last_prompt_sec" -ge "$stale_threshold" ]; then
+    # No prompts for 8+ hours. Fresh start.
     since_last_break_min=0
   else
     since_last_break_min=$((since_last_break_sec / 60))
