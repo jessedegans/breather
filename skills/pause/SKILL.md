@@ -1,6 +1,6 @@
 ---
 name: pause
-description: Use when the user wants to take a full break, step away, save their context, or says "pause", "break", "stepping away", "I need to stop". Also use when breather check-ins suggest a break and the user agrees. Supports "break in X mins" for deferred breaks. For quick breaks ("brb", "grabbing coffee", "need a sec"), use /breather:stretch instead.
+description: Use when the user wants to take a full break, step away, save their context, or says "pause", "break", "take a break", "stepping away", "I need to stop", or types "/break". Also use when breather check-ins suggest a break and the user agrees. Supports "break in X mins" for deferred breaks. For quick breaks ("brb", "grabbing coffee", "need a sec"), use /breather:stretch instead.
 argument-hint: optional reason or "in X mins" for deferred break
 ---
 
@@ -10,15 +10,7 @@ The user is taking a break. Your job: make resuming effortless so the break feel
 
 ## Steps
 
-1. **Check for deferred break** -- if the user said something like "break in 10 mins" or "pause in 15", extract the number of minutes and write the commitment to the session file:
-   ```bash
-   source "${CLAUDE_PLUGIN_ROOT}/scripts/breather-lib.sh"
-   NOW=$(date +%s)
-   SF="$(breather_sessions_dir)/$(ls "$(breather_sessions_dir)" | head -1)"
-   jq ".break_committed_at = $NOW | .break_committed_min = <MINUTES>" "$SF" > "${SF}.tmp" && mv "${SF}.tmp" "$SF"
-   ```
-   Then respond: "Got it, I'll remind you in [X] minutes." and continue normally.
-   Do NOT proceed with the full pause flow below -- the break is deferred.
+1. **Check for deferred break** -- if the user said something like "break in 10 mins" or "pause in 15", this is a commitment, not an immediate break. Just acknowledge it and continue normally: "Got it, I'll remind you in [X] minutes." Do NOT proceed with the full pause flow below.
 
 2. **Record the break** (only for immediate breaks) by running:
    ```bash
@@ -29,7 +21,7 @@ The user is taking a break. Your job: make resuming effortless so the break feel
 
 4. **Read daily stats** by running:
    ```bash
-   source "${CLAUDE_PLUGIN_ROOT}/scripts/breather-lib.sh" && breather_read_all_sessions
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/daily-stats.sh"
    ```
    Use `today_total_min` for break duration suggestion.
 

@@ -13,7 +13,7 @@ Provide an honest, non-preachy assessment of the current session AND daily total
 
 2. **Read all session files** to compute daily totals. Run:
    ```bash
-   source "${CLAUDE_PLUGIN_ROOT}/scripts/breather-lib.sh" && breather_read_all_sessions
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/daily-stats.sh"
    ```
    This returns JSON with: today_total_min, since_last_break_min, total_breaks, total_prompts, active_sessions.
 

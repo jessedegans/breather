@@ -16,7 +16,7 @@ The user is taking a quick break - not leaving, just stepping away from the scre
 
 2. **Read daily stats** by running:
    ```bash
-   source "${CLAUDE_PLUGIN_ROOT}/scripts/breather-lib.sh" && breather_read_all_sessions
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/daily-stats.sh"
    ```
    Use `today_total_min` for the duration.
 

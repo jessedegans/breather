@@ -13,7 +13,7 @@ The user is back from a break. Your job: get them oriented fast so they don't ha
 
 2. **Read daily stats** by running:
    ```bash
-   source "${CLAUDE_PLUGIN_ROOT}/scripts/breather-lib.sh" && breather_read_all_sessions
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/daily-stats.sh"
    ```
 
 3. **Welcome them back in one natural paragraph.** Write it like you're talking to them, not filing a report. Reconstruct their mental state -- what was in their head when they stopped, what they were about to do next, and the one thing that matters most right now.

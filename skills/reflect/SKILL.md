@@ -11,7 +11,7 @@ The user is wrapping up. Give them a clear picture of what happened and set up t
 
 1. **Read daily stats** by running:
    ```bash
-   source "${CLAUDE_PLUGIN_ROOT}/scripts/breather-lib.sh" && breather_read_all_sessions
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/daily-stats.sh"
    ```
    This gives you today_total_min, total_breaks, total_prompts, active_sessions.
 
