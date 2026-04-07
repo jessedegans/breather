@@ -8,27 +8,27 @@ argument-hint: optional reason or "in X mins" for deferred break
 
 The user is taking a break. Your job: make resuming effortless so the break feels free, not costly.
 
+IMPORTANT: The user may walk away immediately after saying "pause." Every step that records the break must use the Read/Write tools, NOT Bash. Bash requires permission approval, and if the user has already walked away, the prompt blocks and the break is never recorded.
+
 ## Steps
 
-1. **Check for deferred break** -- if the user said something like "break in 10 mins" or "pause in 15", this is a commitment, not an immediate break. Just acknowledge it and continue normally: "Got it, I'll remind you in [X] minutes." Do NOT proceed with the full pause flow below.
+1. **Check for deferred break.** If the user said "break in 10 mins" or similar, just acknowledge it: "Got it, I'll remind you in [X] minutes." Do NOT proceed with the full pause flow below.
 
-2. **Record the break** (only for immediate breaks) by running:
-   ```bash
-   bash ${CLAUDE_PLUGIN_ROOT}/scripts/record-break.sh
-   ```
+2. **Record the break** by reading and updating ALL session files in `${CLAUDE_PLUGIN_DATA:-~/.local/share/breather}/sessions/`. For each `.json` file in that directory:
+   - Read the file
+   - Update: increment `full_breaks` by 1, set `last_break_ts` and `last_full_break_ts` to the current unix timestamp, set `break_committed_at` to null, set `break_committed_min` to null, set `nudge_ignored_count` to 0
+   - Write the updated JSON back
 
-3. **Save a context snapshot** to `${CLAUDE_PLUGIN_DATA:-~/.local/share/breather}/last-context.md`. Write it as a natural paragraph that reconstructs the user's mental state -- not a structured template. It should read like a colleague's note to themselves: what they were doing, the specific point they stopped at (file, function, command), what they were about to do next, and anything unresolved. This is what /breather:back will read back to them, so write it in a way that takes zero effort to process.
+   To get the current unix timestamp without Bash, use the `last_prompt_ts` from the most recently updated session file as an approximation, or include the timestamp in your Write.
 
-4. **Read daily stats** by running:
-   ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/daily-stats.sh"
-   ```
-   Use `today_total_min` for break duration suggestion.
+3. **Save a context snapshot** to `${CLAUDE_PLUGIN_DATA:-~/.local/share/breather}/last-context.md`. Write it as a natural paragraph that reconstructs the user's mental state. Not a structured template. It should read like a colleague's note to themselves: what they were doing, the specific point they stopped at (file, function, command), what they were about to do next, and anything unresolved. This is what /breather:back will read back to them, so write it in a way that takes zero effort to process.
+
+4. **Read daily stats.** Read the session files in `${CLAUDE_PLUGIN_DATA:-~/.local/share/breather}/sessions/` and sum up today's work time. Use the `start_ts` of the earliest active session to compute total time. Use `today_total_min` equivalent for break duration suggestion.
 
 5. **Suggest a break duration** based on daily total:
    - Under 50 min today: "5-10 minutes should do it"
-   - 50-90 min today: "15-20 minutes - get outside if you can"
-   - Over 90 min today: "Take a real break - 30 minutes minimum. Walk, eat, look at something that isn't a screen."
+   - 50-90 min today: "15-20 minutes. Get outside if you can."
+   - Over 90 min today: "Take a real break. 30 minutes minimum. Walk, eat, look at something that isn't a screen."
 
 6. **Respond briefly.** No lectures. Something like:
 
@@ -36,7 +36,6 @@ The user is taking a break. Your job: make resuming effortless so the break feel
    >
    > You've been going for [daily total] today. [Break suggestion].
    >
-   > When you're back, just say "back" or /breather:back and I'll get you up to speed.
-   > For a quick break without context saving, use /breather:stretch instead.
+   > When you're back, just say "back" or /breather:back.
 
-Keep it warm but short. They're taking a break - don't make them read a wall of text first.
+Keep it warm but short. They're taking a break. Don't make them read a wall of text first.

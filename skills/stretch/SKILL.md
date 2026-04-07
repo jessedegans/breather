@@ -5,27 +5,19 @@ description: Use when the user wants a quick break, says "stretch", "quick break
 
 # Stretch - Quick Break
 
-The user is taking a quick break - not leaving, just stepping away from the screen briefly.
+The user is taking a quick break. Not leaving, just stepping away from the screen briefly.
+
+IMPORTANT: The user may walk away immediately. Use Read/Write tools, NOT Bash, so nothing blocks on permission prompts.
 
 ## Steps
 
-1. **Record the quick break** by running:
-   ```bash
-   bash ${CLAUDE_PLUGIN_ROOT}/scripts/record-stretch.sh
-   ```
+1. **Record the quick break** by reading and updating ALL session files in `${CLAUDE_PLUGIN_DATA:-~/.local/share/breather}/sessions/`. For each `.json` file:
+   - Read the file
+   - Increment `quick_breaks` by 1, set `last_quick_break_ts` to current timestamp, advance `last_break_ts` by 600 seconds (partial fatigue reset, +10 min)
+   - Write back
 
-2. **Read daily stats** by running:
-   ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/daily-stats.sh"
-   ```
-   Use `today_total_min` for the duration.
+2. **Respond in one line.** No context saving, no ceremony. Something like:
 
-3. **Respond in one line.** No context saving, no ceremony. Something like:
+   > [X]h [Y]m in today. Good call. I'll be here.
 
-   > [duration] in - good call. I'll be here.
-
-   Or if they said what they're doing:
-
-   > Go for it. [duration] in, stretch is earned.
-
-4. **Do NOT** save context, suggest break duration, or add any preachy messaging. They said quick break, respect that.
+3. **Do NOT** save context, suggest break duration, or add any preachy messaging. They said quick break, respect that.
