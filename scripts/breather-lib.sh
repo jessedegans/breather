@@ -169,11 +169,15 @@ breather_read_all_sessions() {
 
   local today_total_min=$((today_total_sec / 60))
 
-  # Aggregate breaks and prompts
+  # Aggregate breaks and prompts (only from today's sessions)
+  # Filter: only sessions where last_prompt_ts is within the stale threshold
+  local cutoff=$((now - stale_threshold))
   local total_breaks
-  total_breaks=$(echo "$merged" | jq '[.[] | ((.full_breaks // 0) + (.quick_breaks // 0))] | add // 0')
+  total_breaks=$(echo "$merged" | jq --argjson cutoff "$cutoff" \
+    '[.[] | select((.last_prompt_ts // 0) > $cutoff) | ((.full_breaks // 0) + (.quick_breaks // 0))] | add // 0')
   local total_prompts
-  total_prompts=$(echo "$merged" | jq '[.[].prompt_count // 0] | add // 0')
+  total_prompts=$(echo "$merged" | jq --argjson cutoff "$cutoff" \
+    '[.[] | select((.last_prompt_ts // 0) > $cutoff) | .prompt_count // 0] | add // 0')
 
   # Nudge ignored status
   local max_nudge_ignored
