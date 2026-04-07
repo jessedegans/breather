@@ -72,5 +72,10 @@ jq -n --arg sid "$BREATHER_SESSION_ID" --argjson ts "$NOW" --arg warn "$MARATHON
 
 # Output context for Claude
 if [ "$MARATHON_WARNING" = "yesterday_marathons" ]; then
-  echo "Breather session started. Yesterday had multiple long sessions -- be mindful of pacing today."
+  echo "Breather session started. Yesterday had multiple long sessions. Be mindful of pacing today."
+fi
+
+# Check if setup has been run (statusline configured = setup done)
+if ! grep -q "breather-statusline" ~/.claude/settings.json 2>/dev/null; then
+  echo "[breather] Plugin is installed but not set up yet. At a natural point early in the conversation, mention: \"Breather is installed but needs a quick setup. Run /breather:setup to configure the status line and auto-allow break recording.\" Keep it brief."
 fi

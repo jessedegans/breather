@@ -7,14 +7,13 @@ description: Use when the user wants a quick break, says "stretch", "quick break
 
 The user is taking a quick break. Not leaving, just stepping away from the screen briefly.
 
-IMPORTANT: The user may walk away immediately. Use Read/Write tools, NOT Bash, so nothing blocks on permission prompts.
-
 ## Steps
 
-1. **Record the quick break** by reading and updating ALL session files in `${CLAUDE_PLUGIN_DATA:-~/.local/share/breather}/sessions/`. For each `.json` file:
-   - Read the file
-   - Increment `quick_breaks` by 1, set `last_quick_break_ts` to current timestamp, advance `last_break_ts` by 600 seconds (partial fatigue reset, +10 min)
-   - Write back
+1. **Record the quick break FIRST** (before responding) by running:
+   ```bash
+   bash ${CLAUDE_PLUGIN_ROOT}/scripts/record-stretch.sh
+   ```
+   Do this before writing anything else. The user may walk away immediately.
 
 2. **Respond in one line.** No context saving, no ceremony. Something like:
 
