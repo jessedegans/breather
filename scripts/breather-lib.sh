@@ -150,7 +150,8 @@ breather_read_all_sessions() {
     jq -n '{
       today_total_min: 0,
       since_last_break_min: 0,
-      total_breaks: 0,
+      full_breaks: 0,
+      quick_breaks: 0,
       total_prompts: 0,
       active_sessions: 0,
       last_prompt_ts: 0,
@@ -225,9 +226,12 @@ breather_read_all_sessions() {
   # Aggregate breaks and prompts (only from today's sessions)
   # Filter: only sessions where last_prompt_ts is within the stale threshold
   local cutoff=$((now - stale_threshold))
-  local total_breaks
-  total_breaks=$(echo "$merged" | jq --argjson cutoff "$cutoff" \
-    '[.[] | select((.last_prompt_ts // 0) > $cutoff) | ((.full_breaks // 0) + (.quick_breaks // 0))] | add // 0')
+  local full_breaks
+  full_breaks=$(echo "$merged" | jq --argjson cutoff "$cutoff" \
+    '[.[] | select((.last_prompt_ts // 0) > $cutoff) | (.full_breaks // 0)] | add // 0')
+  local quick_breaks
+  quick_breaks=$(echo "$merged" | jq --argjson cutoff "$cutoff" \
+    '[.[] | select((.last_prompt_ts // 0) > $cutoff) | (.quick_breaks // 0)] | add // 0')
   local total_prompts
   total_prompts=$(echo "$merged" | jq --argjson cutoff "$cutoff" \
     '[.[] | select((.last_prompt_ts // 0) > $cutoff) | .prompt_count // 0] | add // 0')
@@ -249,7 +253,8 @@ breather_read_all_sessions() {
   jq -n \
     --argjson ttm "$today_total_min" \
     --argjson slbm "$since_last_break_min" \
-    --argjson tb "$total_breaks" \
+    --argjson fb "$full_breaks" \
+    --argjson qb "$quick_breaks" \
     --argjson tp "$total_prompts" \
     --argjson as "${#files[@]}" \
     --argjson lpt "$last_prompt_ts" \
@@ -260,7 +265,8 @@ breather_read_all_sessions() {
     '{
       today_total_min: $ttm,
       since_last_break_min: $slbm,
-      total_breaks: $tb,
+      full_breaks: $fb,
+      quick_breaks: $qb,
       total_prompts: $tp,
       active_sessions: $as,
       last_prompt_ts: $lpt,

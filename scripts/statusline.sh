@@ -46,8 +46,10 @@ TODAY_TOTAL_MIN=$(echo "$GLOBAL" | jq -r '.today_total_min // 0' 2>/dev/null)
 : "${TODAY_TOTAL_MIN:=0}"
 SINCE_BREAK_MIN=$(echo "$GLOBAL" | jq -r '.since_last_break_min // 0' 2>/dev/null)
 : "${SINCE_BREAK_MIN:=0}"
-TOTAL_BREAKS=$(echo "$GLOBAL" | jq -r '.total_breaks // 0' 2>/dev/null)
-: "${TOTAL_BREAKS:=0}"
+FULL_BREAKS=$(echo "$GLOBAL" | jq -r '.full_breaks // 0' 2>/dev/null)
+: "${FULL_BREAKS:=0}"
+QUICK_BREAKS=$(echo "$GLOBAL" | jq -r '.quick_breaks // 0' 2>/dev/null)
+: "${QUICK_BREAKS:=0}"
 ANY_NUDGE_IGNORED=$(echo "$GLOBAL" | jq -r '.any_nudge_ignored // false' 2>/dev/null)
 BREAK_COMMITTED_AT=$(echo "$GLOBAL" | jq -r '.break_committed_at // "null"' 2>/dev/null)
 BREAK_COMMITTED_MIN=$(echo "$GLOBAL" | jq -r '.break_committed_min // "null"' 2>/dev/null)
@@ -88,7 +90,13 @@ if [ "$SHOW_BREAK_COUNT" = "true" ]; then
   elif [ "$SHOW_BREAK_TIME" = "true" ]; then
     # Break commitment time passed
     printf ' %b \033[33mbreak time\033[0m' "$SEP"
-  elif [ "$TOTAL_BREAKS" -gt 0 ]; then
-    printf ' %b \033[37m%d break%s\033[0m' "$SEP" "$TOTAL_BREAKS" "$([ "$TOTAL_BREAKS" -ne 1 ] && echo 's')"
+  elif [ "$FULL_BREAKS" -gt 0 ] || [ "$QUICK_BREAKS" -gt 0 ]; then
+    if [ "$FULL_BREAKS" -gt 0 ] && [ "$QUICK_BREAKS" -gt 0 ]; then
+      printf ' %b \033[37m%d break%s + %d stretch%s\033[0m' "$SEP" "$FULL_BREAKS" "$([ "$FULL_BREAKS" -ne 1 ] && echo 's')" "$QUICK_BREAKS" "$([ "$QUICK_BREAKS" -ne 1 ] && echo 'es')"
+    elif [ "$FULL_BREAKS" -gt 0 ]; then
+      printf ' %b \033[37m%d break%s\033[0m' "$SEP" "$FULL_BREAKS" "$([ "$FULL_BREAKS" -ne 1 ] && echo 's')"
+    else
+      printf ' %b \033[37m%d stretch%s\033[0m' "$SEP" "$QUICK_BREAKS" "$([ "$QUICK_BREAKS" -ne 1 ] && echo 'es')"
+    fi
   fi
 fi
