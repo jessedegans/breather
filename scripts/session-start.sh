@@ -41,8 +41,15 @@ if [ -f "$HISTORY_FILE" ]; then
   fi
 fi
 
-# Create fresh session file
+# Don't overwrite if check-duration.sh already bootstrapped this session
+# But DO overwrite if the existing file is stale (e.g. from yesterday)
 SESSION_FILE="$(breather_session_file "$BREATHER_SESSION_ID")"
+if [ -f "$SESSION_FILE" ]; then
+  existing_prompt_ts=$(jq -r '.last_prompt_ts // 0' "$SESSION_FILE" 2>/dev/null)
+  if ! breather_is_stale "$existing_prompt_ts"; then
+    exit 0
+  fi
+fi
 jq -n --arg sid "$BREATHER_SESSION_ID" --argjson ts "$NOW" --arg warn "$MARATHON_WARNING" '{
   session_id: $sid,
   start_ts: $ts,
