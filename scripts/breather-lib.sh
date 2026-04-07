@@ -66,6 +66,51 @@ breather_ensure_session() {
   echo "$sf"
 }
 
+# --- Finding sessions ---
+
+# Find the most recently active session file (by last_prompt_ts).
+# Used by scripts that don't know their session_id (e.g. record-break from skills).
+breather_find_current_session() {
+  local sessions_dir
+  sessions_dir="$(breather_sessions_dir)"
+  local best_file=""
+  local best_ts=0
+
+  if compgen -G "$sessions_dir/*.json" > /dev/null 2>&1; then
+    for f in "$sessions_dir"/*.json; do
+      local ts
+      ts=$(jq -r '.last_prompt_ts // 0' "$f" 2>/dev/null)
+      if [ "$ts" -gt "$best_ts" ] 2>/dev/null; then
+        best_ts=$ts
+        best_file=$f
+      fi
+    done
+  fi
+
+  if [ -n "$best_file" ]; then
+    echo "$best_file"
+  fi
+}
+
+# Update ALL active (non-stale) session files with a jq expression.
+# Used for breaks: a break is global, affects all sessions.
+# Args: $1 = jq expression (e.g. ".full_breaks = .full_breaks + 1")
+breather_update_all_sessions() {
+  local expr="$1"
+  local sessions_dir
+  sessions_dir="$(breather_sessions_dir)"
+
+  if compgen -G "$sessions_dir/*.json" > /dev/null 2>&1; then
+    for f in "$sessions_dir"/*.json; do
+      local prompt_ts
+      prompt_ts=$(jq -r '.last_prompt_ts // 0' "$f" 2>/dev/null)
+      if ! breather_is_stale "$prompt_ts"; then
+        jq "$expr" "$f" > "${f}.tmp" && mv "${f}.tmp" "$f"
+      fi
+    done
+  fi
+}
+
 # --- Staleness detection ---
 
 # Returns 0 (true) if timestamp is 8+ hours ago (overnight = reset).
@@ -144,25 +189,33 @@ breather_read_all_sessions() {
     since_last_break_min=$((since_last_break_sec / 60))
   fi
 
-  # Calculate "today" total: sum of session durations since last 8h+ gap
-  # For simplicity, sum (now - start_ts) for all active sessions that started
-  # after the last 8h gap. Also include recent history entries.
+  # Calculate "today" total using wall-clock time, not sum of sessions.
+  # Multiple overlapping terminals = one human. Don't double-count.
+  # Today total = (now - earliest_active_start) + history from before active window.
   local today_total_sec=0
+  local earliest_active_start=$now
 
-  # Active sessions
+  # Find earliest active (non-stale) session start
   for f in "${files[@]}"; do
     local start_ts
     start_ts=$(jq -r '.start_ts // 0' "$f" 2>/dev/null)
-    if ! breather_is_stale "$start_ts"; then
-      today_total_sec=$((today_total_sec + now - start_ts))
+    if ! breather_is_stale "$start_ts" && [ "$start_ts" -lt "$earliest_active_start" ] 2>/dev/null; then
+      earliest_active_start=$start_ts
     fi
   done
 
-  # Recent history entries (sessions that ended today)
+  # Wall-clock time from earliest active session
+  if [ "$earliest_active_start" -lt "$now" ]; then
+    today_total_sec=$((now - earliest_active_start))
+  fi
+
+  # Add history entries that ended BEFORE the earliest active session started
+  # (to avoid double-counting overlap)
   if [ -f "$history_file" ]; then
+    local history_cutoff=$((now - stale_threshold))
     local history_today
-    history_today=$(jq -s --argjson cutoff "$((now - stale_threshold))" \
-      '[.[] | select(.end_ts > $cutoff)] | map(.duration_min // 0) | add // 0' \
+    history_today=$(jq -s --argjson cutoff "$history_cutoff" --argjson active_start "$earliest_active_start" \
+      '[.[] | select(.end_ts > $cutoff and .end_ts <= $active_start)] | map(.duration_min // 0) | add // 0' \
       "$history_file" 2>/dev/null || echo 0)
     today_total_sec=$((today_total_sec + history_today * 60))
   fi

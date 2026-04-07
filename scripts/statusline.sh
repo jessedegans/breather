@@ -15,15 +15,14 @@ stdin_data=$(cat)
 SHOW_BREAK_COUNT="${CLAUDE_PLUGIN_OPTION_SHOW_BREAK_COUNT:-true}"
 
 # --- Session time (this conversation) ---
-# Try our own session file first, fall back to Claude Code's timer
-BREATHER_SESSION_ID="${BREATHER_SESSION_ID:-unknown}"
-SESSION_FILE="$(breather_session_file "$BREATHER_SESSION_ID")"
+# Find current session by most recently active file
+SESSION_FILE="$(breather_find_current_session)"
 
 NOW=$(date +%s)
 session_hours=0
 session_minutes=0
 
-if [ -f "$SESSION_FILE" ]; then
+if [ -n "$SESSION_FILE" ] && [ -f "$SESSION_FILE" ]; then
   START_TS=$(jq -r '.start_ts // 0' "$SESSION_FILE" 2>/dev/null)
   if [ "$START_TS" -gt 0 ] 2>/dev/null && ! breather_is_stale "$START_TS"; then
     session_sec=$((NOW - START_TS))
