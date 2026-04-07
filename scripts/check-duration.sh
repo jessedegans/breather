@@ -28,21 +28,30 @@ NUDGE_IGNORED=$(jq -r '.nudge_ignored_count // 0' "$SESSION_FILE")
 NEW_COUNT=$((PROMPT_COUNT + 1))
 
 # --- Inactivity detection ---
-# Check gap since last prompt in THIS session.
-# Important: gaps under 30 min are NOT breaks. The user is reading code,
-# reviewing diffs, thinking, or working in VS Code. Only long gaps matter.
+# Check gap since last prompt in THIS session. But first check if a break
+# was already recorded globally (e.g. user did /breather:pause in another terminal).
 PROMPT_GAP_SEC=$((NOW - LAST_PROMPT_TS))
 PROMPT_GAP_MIN=$((PROMPT_GAP_SEC / 60))
 INACTIVITY_MSG=""
 
-if [ "$PROMPT_GAP_MIN" -ge 45 ] && [ "$LAST_PROMPT_TS" -gt 0 ]; then
-  # 45+ min gap = very likely a real break. Auto-count as full break.
-  jq ".last_break_ts = $NOW | .full_breaks = (.full_breaks // 0) + 1 | .last_full_break_ts = $NOW" \
-    "$SESSION_FILE" > "${SESSION_FILE}.tmp" && mv "${SESSION_FILE}.tmp" "$SESSION_FILE"
-  INACTIVITY_MSG="{\"systemMessage\": \"[breather] ${PROMPT_GAP_MIN} minute gap -- counting that as a break.\"}"
-elif [ "$PROMPT_GAP_MIN" -ge 30 ] && [ "$LAST_PROMPT_TS" -gt 0 ]; then
-  # 30-44 min gap = ambiguous. Ask, don't assume.
-  INACTIVITY_MSG="{\"systemMessage\": \"[breather] ${PROMPT_GAP_MIN} minute gap since last prompt. Don't ask about it unless it comes up naturally. If the user mentions they took a break, count it with /breather:stretch. Otherwise assume they were reading or thinking -- that's still focused work, not a break.\"}"
+# Check global state: did a break happen during our gap?
+GLOBAL_PRE=$(breather_read_all_sessions)
+GLOBAL_SINCE_BREAK=$(echo "$GLOBAL_PRE" | jq -r '.since_last_break_min // 0')
+
+if [ "$PROMPT_GAP_MIN" -ge 30 ] && [ "$LAST_PROMPT_TS" -gt 0 ]; then
+  # There was a gap. But was a break already recorded (in any session)?
+  if [ "$GLOBAL_SINCE_BREAK" -lt "$PROMPT_GAP_MIN" ]; then
+    # A break was recorded more recently than our gap started. Skip inactivity.
+    INACTIVITY_MSG=""
+  elif [ "$PROMPT_GAP_MIN" -ge 45 ]; then
+    # 45+ min gap, no break recorded anywhere. Auto-count as full break.
+    jq ".last_break_ts = $NOW | .full_breaks = (.full_breaks // 0) + 1 | .last_full_break_ts = $NOW" \
+      "$SESSION_FILE" > "${SESSION_FILE}.tmp" && mv "${SESSION_FILE}.tmp" "$SESSION_FILE"
+    INACTIVITY_MSG="{\"systemMessage\": \"[breather] ${PROMPT_GAP_MIN} minute gap. Counting that as a break.\"}"
+  else
+    # 30-44 min gap, no break elsewhere. Ambiguous.
+    INACTIVITY_MSG="{\"systemMessage\": \"[breather] ${PROMPT_GAP_MIN} minute gap since last prompt. Don't ask about it unless it comes up naturally. If the user mentions they took a break, count it with /breather:stretch. Otherwise assume they were reading or thinking.\"}"
+  fi
 fi
 
 # Update prompt count and last_prompt_ts
