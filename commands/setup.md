@@ -1,5 +1,5 @@
 ---
-name: setup
+name: breather-setup
 description: First-time setup for breather. Run once after installing.
 ---
 
