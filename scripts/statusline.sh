@@ -91,7 +91,11 @@ if [ "$ANY_NUDGE_IGNORED" = "true" ]; then
   fi
 elif [ "$SHOW_BREAK_TIME" = "true" ]; then
   printf '%b\033[33mbreak time\033[0m' "$SEP"
+elif [ "$SINCE_BREAK_MIN" -ge 25 ]; then
+  # When fatigue starts mattering, show time since last break (actionable)
+  printf '%b\033[2mlast break: %dm ago\033[0m' "$SEP" "$SINCE_BREAK_MIN"
 elif [ "$FULL_BREAKS" -gt 0 ] || [ "$QUICK_BREAKS" -gt 0 ]; then
+  # Otherwise show break count
   if [ "$FULL_BREAKS" -gt 0 ] && [ "$QUICK_BREAKS" -gt 0 ]; then
     printf '%b\033[37m%d break%s · %d stretch%s\033[0m' "$SEP" "$FULL_BREAKS" "$([ "$FULL_BREAKS" -ne 1 ] && echo 's')" "$QUICK_BREAKS" "$([ "$QUICK_BREAKS" -ne 1 ] && echo 'es')"
   elif [ "$FULL_BREAKS" -gt 0 ]; then
