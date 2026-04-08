@@ -66,12 +66,12 @@ else
   today_color='\033[32m'  # Green
 fi
 
-SEP='\033[2m|\033[0m'
+SEP='\033[2m · \033[0m'
 
 # --- Build the line ---
-# breather  session: Xh Ym | today: Xh Ym | N breaks
-printf '\033[2mbreather\033[0m  \033[2msession: %dh %dm\033[0m' "$session_hours" "$session_minutes"
-printf ' %b %btoday: %dh %dm\033[0m' "$SEP" "$today_color" "$today_hours" "$today_minutes"
+# breather Xm · Xh Ym today · N breaks + N stretches
+printf '\033[2mbreather %dh %dm\033[0m' "$session_hours" "$session_minutes"
+printf '%b%b%dh %dm today\033[0m' "$SEP" "$today_color" "$today_hours" "$today_minutes"
 
 # --- Right-side: break count OR status message ---
 if [ "$SHOW_BREAK_COUNT" = "true" ]; then
@@ -86,17 +86,17 @@ if [ "$SHOW_BREAK_COUNT" = "true" ]; then
 
   if [ "$ANY_NUDGE_IGNORED" = "true" ]; then
     # Nudges being ignored -- bypass Claude, talk to user directly
-    printf ' %b \033[33mtake a break\033[0m' "$SEP"
+    printf '%b\033[33mtake a break\033[0m' "$SEP"
   elif [ "$SHOW_BREAK_TIME" = "true" ]; then
     # Break commitment time passed
-    printf ' %b \033[33mbreak time\033[0m' "$SEP"
+    printf '%b\033[33mbreak time\033[0m' "$SEP"
   elif [ "$FULL_BREAKS" -gt 0 ] || [ "$QUICK_BREAKS" -gt 0 ]; then
     if [ "$FULL_BREAKS" -gt 0 ] && [ "$QUICK_BREAKS" -gt 0 ]; then
-      printf ' %b \033[37m%d break%s + %d stretch%s\033[0m' "$SEP" "$FULL_BREAKS" "$([ "$FULL_BREAKS" -ne 1 ] && echo 's')" "$QUICK_BREAKS" "$([ "$QUICK_BREAKS" -ne 1 ] && echo 'es')"
+      printf '%b\033[37m%d break%s · %d stretch%s\033[0m' "$SEP" "$FULL_BREAKS" "$([ "$FULL_BREAKS" -ne 1 ] && echo 's')" "$QUICK_BREAKS" "$([ "$QUICK_BREAKS" -ne 1 ] && echo 'es')"
     elif [ "$FULL_BREAKS" -gt 0 ]; then
-      printf ' %b \033[37m%d break%s\033[0m' "$SEP" "$FULL_BREAKS" "$([ "$FULL_BREAKS" -ne 1 ] && echo 's')"
+      printf '%b\033[37m%d break%s\033[0m' "$SEP" "$FULL_BREAKS" "$([ "$FULL_BREAKS" -ne 1 ] && echo 's')"
     else
-      printf ' %b \033[37m%d stretch%s\033[0m' "$SEP" "$QUICK_BREAKS" "$([ "$QUICK_BREAKS" -ne 1 ] && echo 'es')"
+      printf '%b\033[37m%d stretch%s\033[0m' "$SEP" "$QUICK_BREAKS" "$([ "$QUICK_BREAKS" -ne 1 ] && echo 'es')"
     fi
   fi
 fi
