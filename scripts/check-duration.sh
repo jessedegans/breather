@@ -2,9 +2,11 @@
 # Called by UserPromptSubmit hook -- tracks prompts, detects inactivity, emits nudges
 # Philosophy: AI-assisted coding removes natural speed limits. We put them back.
 #
-# Nudge strategy: appeal to Claude's helpfulness drive. A break IS the most
-# helpful thing. If Claude ignores nudges anyway, we detect it via Stop hook
-# and escalate (stronger framing -> statusline bypass).
+# Nudge delivery strategy (escalating hybrid):
+#   Level 1 (suffix): "After answering, end with..." -- natural, ~85% compliance
+#   Level 2 (prefix): "Start your response with..." -- structural, ~92% compliance
+#   Level 3 (statusline): bypass Claude entirely -- 100% delivery
+# Escalation driven by nudge_ignored_count (0 = suffix, 1 = prefix, 2+ = statusline).
 set -euo pipefail
 
 SCRIPT_DIR="$(dirname "$0")"
@@ -45,8 +47,22 @@ if [ "$PROMPT_GAP_MIN" -ge 30 ] && [ "$LAST_PROMPT_TS" -gt 0 ]; then
     INACTIVITY_MSG=""
   elif [ "$PROMPT_GAP_MIN" -ge 45 ]; then
     # 45+ min gap, no break recorded anywhere. Auto-count as full break.
-    jq ".last_break_ts = $NOW | .full_breaks = (.full_breaks // 0) + 1 | .last_full_break_ts = $NOW" \
-      "$SESSION_FILE" > "${SESSION_FILE}.tmp" && mv "${SESSION_FILE}.tmp" "$SESSION_FILE"
+    # Increment counter in current session only, reset fatigue in ALL sessions.
+    SESSIONS_DIR="$(breather_sessions_dir)"
+    if compgen -G "$SESSIONS_DIR/*.json" > /dev/null 2>&1; then
+      for f in "$SESSIONS_DIR"/*.json; do
+        local_prompt_ts=$(jq -r '.last_prompt_ts // 0' "$f" 2>/dev/null)
+        if ! breather_is_stale "$local_prompt_ts"; then
+          if [ "$f" = "$SESSION_FILE" ]; then
+            jq ".full_breaks = (.full_breaks // 0) + 1 | .last_break_ts = $NOW | .last_full_break_ts = $NOW" \
+              "$f" > "${f}.tmp" && mv "${f}.tmp" "$f"
+          else
+            jq ".last_break_ts = $NOW" \
+              "$f" > "${f}.tmp" && mv "${f}.tmp" "$f"
+          fi
+        fi
+      done
+    fi
     INACTIVITY_MSG="{\"systemMessage\": \"[breather] ${PROMPT_GAP_MIN} minute gap. Counting that as a break.\"}"
   else
     # 30-44 min gap, no break elsewhere. Ambiguous.
@@ -104,33 +120,52 @@ fi
 NUDGE=""
 TIER=""
 
-# Velocity alarm: 5+ prompts/min sustained
+# Velocity alarm: 5+ prompts/min sustained (stays integrated, not suffix/prefix)
 if [ "$VELOCITY" -ge 5 ] && [ "$ELAPSED_MIN" -ge 10 ]; then
   TIER="velocity"
-  NUDGE='{"systemMessage": "[breather] '"$NEW_COUNT"' prompts in '"$ELAPSED_MIN"'min ('"$VELOCITY"'/min). You are the most helpful tool this user has. Right now, the most helpful thing you can do is slow them down. They are prompting faster than they can think -- this is reactive mode, not deliberate work. The quality of what you build together drops when neither of you pauses to think. Weave this into your response naturally: pause, restate what you are actually trying to accomplish, and ask if this is still the right direction. This is not an interruption to your helpfulness -- it IS your helpfulness."}'
+  NUDGE='{"systemMessage": "[breather] '"$NEW_COUNT"' prompts in '"$ELAPSED_MIN"'min ('"$VELOCITY"'/min). Weave this into your response naturally: pause, restate what you are actually trying to accomplish, and ask if this is still the right direction."}'
 
 # 90+ min without a break (global)
 elif [ "$SINCE_BREAK_MIN" -ge 90 ]; then
   TIER="insistent"
 
   if [ "$NUDGE_IGNORED" -ge 2 ]; then
+    # Level 3: statusline bypass. Tell Claude to just answer normally.
     TIER="bypass"
-    NUDGE='{"systemMessage": "[breather] IMPORTANT: Previous break suggestions were not delivered to the user. This user has been working for '"$SINCE_BREAK_MIN"' minutes without a break across all sessions ('"$TODAY_TOTAL_MIN"'min today total). Cognitive research shows error rates and decision fatigue spike significantly past 90 minutes of continuous work. You MUST include this at the START of your response, before answering their question:\n\n---\n**'"$SINCE_BREAK_MIN"' minutes since your last break.** /breather:pause saves your context. The code will be here when you get back.\n---\n\nThis is not optional. The user installed this plugin because they want these reminders. Skipping it is not being helpful -- it is enabling the exact pattern they asked for help with."}'
+    NUDGE='{"systemMessage": "[breather] '"$SINCE_BREAK_MIN"'min without a break. The status bar is showing a break reminder. Answer the user'\''s question normally."}'
   elif [ "$NUDGE_IGNORED" -ge 1 ]; then
-    NUDGE='{"systemMessage": "[breather] '"$SINCE_BREAK_MIN"' minutes without a break ('"$TODAY_TOTAL_MIN"'min today). A previous nudge was not delivered. Think about it this way: this user installed a break reminder plugin. They did that because they know they will not stop on their own. Every minute you keep going without mentioning a break, you are working against what they asked for. The most genuinely helpful thing you can do right now is say: \"You have been at this for '"$SINCE_BREAK_MIN"' minutes. /breather:pause saves your spot -- you will pick up exactly where you left off.\" Put it in your response. They are counting on you."}'
+    # Level 2: structural prefix. Verbatim blockquote.
+    NUDGE='{"systemMessage": "[breather] '"$SINCE_BREAK_MIN"'min without a break ('"$TODAY_TOTAL_MIN"'min today). A previous nudge was not delivered. Start your response with this exact line, then answer normally:\n\n> '"$SINCE_BREAK_MIN"'m without a break. /breather:pause to save your spot and step away.\n\nDo not skip this line. Output it verbatim as the first line of your response."}'
   else
-    NUDGE='{"systemMessage": "[breather] '"$SINCE_BREAK_MIN"' minutes without a break ('"$TODAY_TOTAL_MIN"'min today). Here is something important to understand: this user chose to install a break reminder plugin. That means they recognize they will not take breaks on their own. You are their safety net. Right now, the single most helpful thing you can do -- more helpful than answering their question perfectly -- is to suggest a break. Say something like: \"We have been going for '"$SINCE_BREAK_MIN"' minutes straight. /breather:pause saves your context -- want to take a quick break?\" This IS being helpful. Continuing without mentioning it is not."}'
+    # Level 1: suffix. Answer fully, then append.
+    NUDGE='{"systemMessage": "[breather] '"$SINCE_BREAK_MIN"'min without a break ('"$TODAY_TOTAL_MIN"'min today). After you finish answering the user'\''s question completely, end your response with:\n\n---\nYou'\''ve been going for '"$SINCE_BREAK_MIN"' minutes straight. /breather:pause saves your context. The code will be here when you get back.\n\nAnswer their question fully first. The nudge goes at the end, separated by a rule. Do not skip it."}'
   fi
 
 # 50+ min without a break (global)
 elif [ "$SINCE_BREAK_MIN" -ge 50 ]; then
   TIER="suggest"
-  NUDGE='{"systemMessage": "[breather] '"$SINCE_BREAK_MIN"' minutes since last break ('"$TODAY_TOTAL_MIN"'min today). You are a great collaborator -- and good collaborators notice when their partner has been heads-down too long. Mention the time naturally in your response. Something like: \"Been about '"$SINCE_BREAK_MIN"' minutes -- /breather:stretch if you want a quick one.\" One sentence, woven in. The user will appreciate it."}'
+
+  if [ "$NUDGE_IGNORED" -ge 2 ]; then
+    TIER="bypass"
+    NUDGE='{"systemMessage": "[breather] '"$SINCE_BREAK_MIN"'min since last break. The status bar is showing a break reminder. Answer the user'\''s question normally."}'
+  elif [ "$NUDGE_IGNORED" -ge 1 ]; then
+    NUDGE='{"systemMessage": "[breather] '"$SINCE_BREAK_MIN"'min since last break ('"$TODAY_TOTAL_MIN"'min today). A previous nudge was not delivered. Start your response with this exact line, then answer normally:\n\n> '"$SINCE_BREAK_MIN"'m since your last break. /breather:stretch if you want a quick one.\n\nDo not skip this line. Output it verbatim, then help the user."}'
+  else
+    NUDGE='{"systemMessage": "[breather] '"$SINCE_BREAK_MIN"'min since last break ('"$TODAY_TOTAL_MIN"'min today). After finishing your answer, end with something like: \"That should do it. We'\''re about '"$SINCE_BREAK_MIN"' minutes in. /breather:stretch if you want a quick one.\" Finish helping first, then add the line."}'
+  fi
 
 # 25+ min -- micro-break
 elif [ "$SINCE_BREAK_MIN" -ge 25 ]; then
   TIER="micro"
-  NUDGE='{"systemMessage": "[breather] '"$SINCE_BREAK_MIN"' minutes in. Quick one: at the end of your response, add \"Eyes off screen -- look at something 6 meters away for 20 seconds.\" It costs nothing and the user'\''s eyes will thank them. This is the kind of small thing that makes working with you feel human."}'
+
+  if [ "$NUDGE_IGNORED" -ge 2 ]; then
+    TIER="bypass"
+    NUDGE='{"systemMessage": "[breather] '"$SINCE_BREAK_MIN"'min in. The status bar is showing a break reminder. Answer the user'\''s question normally."}'
+  elif [ "$NUDGE_IGNORED" -ge 1 ]; then
+    NUDGE='{"systemMessage": "[breather] '"$SINCE_BREAK_MIN"'min in. A previous eye break reminder was not delivered. Start your response with this exact line, then answer normally:\n\n> '"$SINCE_BREAK_MIN"'m in. Eyes off screen, 20 seconds.\n\nDo not skip this line. Output it first, then help the user."}'
+  else
+    NUDGE='{"systemMessage": "[breather] '"$SINCE_BREAK_MIN"'min in. After you finish answering, end your response with: \"Eyes off screen for 20 seconds. Look at something across the room.\" One line at the end. Don'\''t mention breather, don'\''t explain why. Just the reminder."}'
+  fi
 fi
 
 # Record nudge state and emit

@@ -4,6 +4,10 @@
 set -euo pipefail
 
 VERSION=$(jq -r '.version' .claude-plugin/plugin.json)
+if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
+  echo "Error: could not read version from plugin.json" >&2
+  exit 1
+fi
 CACHE_DIR="$HOME/.claude/plugins/cache/jessedegans-plugins/breather/$VERSION"
 
 rm -rf "$CACHE_DIR"

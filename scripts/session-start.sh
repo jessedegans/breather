@@ -57,7 +57,7 @@ jq -n --arg sid "$BREATHER_SESSION_ID" --argjson ts "$NOW" --arg warn "$MARATHON
   last_prompt_ts: $ts,
   full_breaks: 0,
   quick_breaks: 0,
-  last_break_ts: $ts,
+  last_break_ts: 0,
   last_full_break_ts: null,
   last_quick_break_ts: null,
   last_nudge_ts: 0,

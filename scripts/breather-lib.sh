@@ -66,7 +66,7 @@ breather_ensure_session() {
       last_prompt_ts: $ts,
       full_breaks: 0,
       quick_breaks: 0,
-      last_break_ts: $ts,
+      last_break_ts: 0,
       last_full_break_ts: null,
       last_quick_break_ts: null,
       last_nudge_ts: 0,
@@ -197,14 +197,24 @@ breather_read_all_sessions() {
   # But if prompts are recent, the session is active regardless of how old
   # last_break_ts is. A 9-hour marathon should still show 9h since last break.
   local since_last_prompt_sec=$((now - last_prompt_ts))
-  local since_last_break_sec=$((now - last_break_ts))
   local since_last_break_min
 
   if [ "$since_last_prompt_sec" -ge "$stale_threshold" ]; then
     # No prompts for 8+ hours. Fresh start.
     since_last_break_min=0
+  elif [ "$last_break_ts" -le 0 ] 2>/dev/null; then
+    # No break ever taken. Measure from earliest active session start.
+    local earliest_start=$now
+    for f in "${files[@]}"; do
+      local s_ts
+      s_ts=$(jq -r '.start_ts // 0' "$f" 2>/dev/null)
+      if [ "$s_ts" -gt 0 ] && [ "$s_ts" -lt "$earliest_start" ] 2>/dev/null; then
+        earliest_start=$s_ts
+      fi
+    done
+    since_last_break_min=$(( (now - earliest_start) / 60 ))
   else
-    since_last_break_min=$((since_last_break_sec / 60))
+    since_last_break_min=$(( (now - last_break_ts) / 60 ))
   fi
 
   # Calculate "today" total using wall-clock time, not sum of sessions.
@@ -214,10 +224,13 @@ breather_read_all_sessions() {
   local earliest_active_start=$now
 
   # Find earliest active (non-stale) session start
+  # Use last_prompt_ts for staleness (not start_ts): a session started 9h ago
+  # but prompted 5m ago is still active, not stale.
   for f in "${files[@]}"; do
-    local start_ts
+    local start_ts lp_ts
     start_ts=$(jq -r '.start_ts // 0' "$f" 2>/dev/null)
-    if ! breather_is_stale "$start_ts" && [ "$start_ts" -lt "$earliest_active_start" ] 2>/dev/null; then
+    lp_ts=$(jq -r '.last_prompt_ts // 0' "$f" 2>/dev/null)
+    if ! breather_is_stale "$lp_ts" && [ "$start_ts" -lt "$earliest_active_start" ] 2>/dev/null; then
       earliest_active_start=$start_ts
     fi
   done
@@ -261,11 +274,16 @@ breather_read_all_sessions() {
     any_nudge_ignored="true"
   fi
 
-  # Break commitment (from any session)
+  # Break commitment (from the most recent commitment across sessions)
+  local break_commitment
+  break_commitment=$(echo "$merged" | jq '
+    [.[] | select(.break_committed_at != null)]
+    | sort_by(.break_committed_at) | last // null
+  ')
   local break_committed_at
-  break_committed_at=$(echo "$merged" | jq '[.[].break_committed_at // null | select(. != null)] | max // null')
+  break_committed_at=$(echo "$break_commitment" | jq '.break_committed_at // null')
   local break_committed_min
-  break_committed_min=$(echo "$merged" | jq '[.[].break_committed_min // null | select(. != null)] | first // null')
+  break_committed_min=$(echo "$break_commitment" | jq '.break_committed_min // null')
 
   jq -n \
     --argjson ttm "$today_total_min" \
