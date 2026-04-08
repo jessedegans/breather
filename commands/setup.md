@@ -21,22 +21,23 @@ One-time setup. Run this once after installing the plugin.
 
    Wait for the user to confirm before proceeding.
 
-2. **Copy the statusline script** to a stable location (survives plugin updates):
+2. **Read** `~/.claude/settings.json`.
+
+3. **Find the statusline script path** by running:
    ```bash
-   cp "${CLAUDE_PLUGIN_ROOT}/scripts/statusline.sh" ~/.claude/breather-statusline.sh && cp "${CLAUDE_PLUGIN_ROOT}/scripts/breather-lib.sh" ~/.claude/breather-lib.sh && chmod +x ~/.claude/breather-statusline.sh ~/.claude/breather-lib.sh
+   echo "${CLAUDE_PLUGIN_ROOT}/scripts/statusline.sh"
    ```
+   Use the output as the path in the next step.
 
-3. **Read** `~/.claude/settings.json`.
-
-4. **Add the statusline** config. Add or update the `statusLine` key:
+4. **Add the statusline** config to settings.json. Use the resolved path from step 3:
    ```json
    "statusLine": {
      "type": "command",
-     "command": "~/.claude/breather-statusline.sh"
+     "command": "bash \"/resolved/path/to/statusline.sh\""
    }
    ```
 
-5. **Explain auto-allow and ask:**
+5. **Explain auto-allow and ask the user:**
 
    > The break recording scripts (`record-break.sh`, `record-stretch.sh`, `daily-stats.sh`) need permission to run each time by default. I can auto-allow them so `/breather:pause` records instantly without prompting.
    >
