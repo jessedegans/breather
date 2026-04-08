@@ -83,7 +83,12 @@ if [ "$BREAK_COMMITTED_AT" != "null" ] && [ "$BREAK_COMMITTED_MIN" != "null" ]; 
 fi
 
 if [ "$ANY_NUDGE_IGNORED" = "true" ]; then
-  printf '%b\033[33mtake a break\033[0m' "$SEP"
+  # Level 3 bypass: color matches fatigue tier
+  if [ "$SINCE_BREAK_MIN" -ge 90 ]; then
+    printf '%b\033[31mtake a break\033[0m' "$SEP"
+  else
+    printf '%b\033[33mtake a break\033[0m' "$SEP"
+  fi
 elif [ "$SHOW_BREAK_TIME" = "true" ]; then
   printf '%b\033[33mbreak time\033[0m' "$SEP"
 elif [ "$FULL_BREAKS" -gt 0 ] || [ "$QUICK_BREAKS" -gt 0 ]; then
