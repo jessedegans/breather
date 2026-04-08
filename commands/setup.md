@@ -5,18 +5,30 @@ description: First-time setup for breather. Run once after installing.
 
 # Breather Setup
 
-One-time setup. Configures the status line and optionally auto-allows break recording scripts.
+One-time setup. Run this once after installing the plugin.
 
 ## Steps
 
-1. **Copy the statusline script** to a stable location (survives version updates):
+1. **Introduce yourself first.** Before doing anything, explain what breather is and what this setup will do:
+
+   > **Breather** is an automatic break reminder for Claude Code. It tracks how long you've been working across all your terminals, nudges you to take breaks, and saves your mental context so stopping doesn't cost you 20 minutes of "where was I?"
+   >
+   > This setup does two things:
+   > 1. Adds a status line at the bottom of your terminal showing your session time and daily total
+   > 2. Optionally auto-allows the break recording scripts so pausing works instantly
+   >
+   > After setup, everything runs automatically. Ready?
+
+   Wait for the user to confirm before proceeding.
+
+2. **Copy the statusline script** to a stable location (survives plugin updates):
    ```bash
    cp "${CLAUDE_PLUGIN_ROOT}/scripts/statusline.sh" ~/.claude/breather-statusline.sh && cp "${CLAUDE_PLUGIN_ROOT}/scripts/breather-lib.sh" ~/.claude/breather-lib.sh && chmod +x ~/.claude/breather-statusline.sh ~/.claude/breather-lib.sh
    ```
 
-2. **Read** `~/.claude/settings.json`.
+3. **Read** `~/.claude/settings.json`.
 
-3. **Add the statusline** config. Add or update the `statusLine` key:
+4. **Add the statusline** config. Add or update the `statusLine` key:
    ```json
    "statusLine": {
      "type": "command",
@@ -24,20 +36,15 @@ One-time setup. Configures the status line and optionally auto-allows break reco
    }
    ```
 
-4. **Explain auto-allow and ask the user:**
+5. **Explain auto-allow and ask:**
 
-   > Breather uses small scripts to record breaks and read session stats. By default, Claude Code asks for permission each time one runs.
+   > The break recording scripts (`record-break.sh`, `record-stretch.sh`, `daily-stats.sh`) need permission to run each time by default. I can auto-allow them so `/breather:pause` records instantly without prompting.
    >
-   > I can auto-allow these specific scripts so `/breather:pause` and `/breather:stretch` record instantly. This is recommended. Otherwise you'll need to approve each time, and if you walk away after saying "pause", the break won't be recorded.
+   > This matters because if you walk away right after saying "pause," a permission prompt would block and the break is never recorded.
    >
-   > Scripts that would be auto-allowed:
-   > - `record-break.sh` (records a full break)
-   > - `record-stretch.sh` (records a quick stretch)
-   > - `daily-stats.sh` (reads session stats)
-   >
-   > **Auto-allow these?** (yes/no)
+   > **Auto-allow these scripts?** (yes/no)
 
-5. **If yes**, add to `permissions.allow` in settings.json:
+6. **If yes**, add to `permissions.allow` in settings.json:
    ```json
    "Bash(*/breather/scripts/record-break.sh)",
    "Bash(*/breather/scripts/record-stretch.sh)",
@@ -45,16 +52,14 @@ One-time setup. Configures the status line and optionally auto-allows break reco
    ```
    Preserve any existing allow rules.
 
-6. **Write the updated settings.json.**
+7. **Write the updated settings.json.**
 
-7. **Give a brief intro:**
+8. **Wrap up:**
 
-   > Breather is set up. Here's what happens now:
+   > Setup complete. Here's what you have now:
    >
-   > - The status line at the bottom shows your session time and daily total (green/yellow/red)
-   > - After 25 min, I'll suggest an eye break. After 50, a stretch. After 90, a real break.
-   > - `/breather:pause` saves your mental context so you can stop without losing your place
-   > - `/breather:stretch` for a quick break, `/breather:back` to pick up where you left off
-   > - `/breather:checkin` for session stats, `/breather:reflect` for end-of-day summary
+   > - **Status line**: shows session time and daily total (green/yellow/red based on fatigue)
+   > - **Automatic nudges**: eye break at 25 min, stretch at 50 min, real break at 90 min
+   > - **Commands**: `/breather:pause` (full break with context save), `/breather:stretch` (quick break), `/breather:back` (restore context), `/breather:checkin` (stats), `/breather:reflect` (end of day summary)
    >
-   > Restart Claude Code to see the status line. Everything else is automatic.
+   > Restart Claude Code to see the status line. Everything else works right away.
