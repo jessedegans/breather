@@ -8,7 +8,24 @@
 # --- Path helpers ---
 
 breather_state_dir() {
-  local dir="${CLAUDE_PLUGIN_DATA:-${HOME}/.local/share/breather}"
+  local dir=""
+
+  # 1. Use CLAUDE_PLUGIN_DATA if set (hooks context)
+  if [ -n "${CLAUDE_PLUGIN_DATA:-}" ]; then
+    dir="$CLAUDE_PLUGIN_DATA"
+  else
+    # 2. Auto-detect: look for the plugin data dir Claude Code creates
+    local pattern="$HOME/.claude/plugins/data/breather-*"
+    local found
+    found=$(compgen -G "$pattern" 2>/dev/null | head -1)
+    if [ -n "$found" ] && [ -d "$found" ]; then
+      dir="$found"
+    else
+      # 3. Fallback for manual testing / no plugin install
+      dir="${HOME}/.local/share/breather"
+    fi
+  fi
+
   mkdir -p "$dir"
   echo "$dir"
 }

@@ -11,8 +11,7 @@ source "$SCRIPT_DIR/breather-lib.sh"
 
 stdin_data=$(cat)
 
-# User-configurable options
-SHOW_BREAK_COUNT="${CLAUDE_PLUGIN_OPTION_SHOW_BREAK_COUNT:-true}"
+# Break count always shown (removed configurable options for simplicity)
 
 # --- Session time (this conversation) ---
 # Find current session by most recently active file
@@ -74,29 +73,25 @@ printf '\033[2mbreather %dh %dm\033[0m' "$session_hours" "$session_minutes"
 printf '%b%b%dh %dm today\033[0m' "$SEP" "$today_color" "$today_hours" "$today_minutes"
 
 # --- Right-side: break count OR status message ---
-if [ "$SHOW_BREAK_COUNT" = "true" ]; then
-  # Check for break commitment expired
-  SHOW_BREAK_TIME=false
-  if [ "$BREAK_COMMITTED_AT" != "null" ] && [ "$BREAK_COMMITTED_MIN" != "null" ]; then
-    BREAK_DUE_AT=$((BREAK_COMMITTED_AT + BREAK_COMMITTED_MIN * 60))
-    if [ "$NOW" -ge "$BREAK_DUE_AT" ]; then
-      SHOW_BREAK_TIME=true
-    fi
+# Check for break commitment expired
+SHOW_BREAK_TIME=false
+if [ "$BREAK_COMMITTED_AT" != "null" ] && [ "$BREAK_COMMITTED_MIN" != "null" ]; then
+  BREAK_DUE_AT=$((BREAK_COMMITTED_AT + BREAK_COMMITTED_MIN * 60))
+  if [ "$NOW" -ge "$BREAK_DUE_AT" ]; then
+    SHOW_BREAK_TIME=true
   fi
+fi
 
-  if [ "$ANY_NUDGE_IGNORED" = "true" ]; then
-    # Nudges being ignored -- bypass Claude, talk to user directly
-    printf '%b\033[33mtake a break\033[0m' "$SEP"
-  elif [ "$SHOW_BREAK_TIME" = "true" ]; then
-    # Break commitment time passed
-    printf '%b\033[33mbreak time\033[0m' "$SEP"
-  elif [ "$FULL_BREAKS" -gt 0 ] || [ "$QUICK_BREAKS" -gt 0 ]; then
-    if [ "$FULL_BREAKS" -gt 0 ] && [ "$QUICK_BREAKS" -gt 0 ]; then
-      printf '%b\033[37m%d break%s · %d stretch%s\033[0m' "$SEP" "$FULL_BREAKS" "$([ "$FULL_BREAKS" -ne 1 ] && echo 's')" "$QUICK_BREAKS" "$([ "$QUICK_BREAKS" -ne 1 ] && echo 'es')"
-    elif [ "$FULL_BREAKS" -gt 0 ]; then
-      printf '%b\033[37m%d break%s\033[0m' "$SEP" "$FULL_BREAKS" "$([ "$FULL_BREAKS" -ne 1 ] && echo 's')"
-    else
-      printf '%b\033[37m%d stretch%s\033[0m' "$SEP" "$QUICK_BREAKS" "$([ "$QUICK_BREAKS" -ne 1 ] && echo 'es')"
-    fi
+if [ "$ANY_NUDGE_IGNORED" = "true" ]; then
+  printf '%b\033[33mtake a break\033[0m' "$SEP"
+elif [ "$SHOW_BREAK_TIME" = "true" ]; then
+  printf '%b\033[33mbreak time\033[0m' "$SEP"
+elif [ "$FULL_BREAKS" -gt 0 ] || [ "$QUICK_BREAKS" -gt 0 ]; then
+  if [ "$FULL_BREAKS" -gt 0 ] && [ "$QUICK_BREAKS" -gt 0 ]; then
+    printf '%b\033[37m%d break%s · %d stretch%s\033[0m' "$SEP" "$FULL_BREAKS" "$([ "$FULL_BREAKS" -ne 1 ] && echo 's')" "$QUICK_BREAKS" "$([ "$QUICK_BREAKS" -ne 1 ] && echo 'es')"
+  elif [ "$FULL_BREAKS" -gt 0 ]; then
+    printf '%b\033[37m%d break%s\033[0m' "$SEP" "$FULL_BREAKS" "$([ "$FULL_BREAKS" -ne 1 ] && echo 's')"
+  else
+    printf '%b\033[37m%d stretch%s\033[0m' "$SEP" "$QUICK_BREAKS" "$([ "$QUICK_BREAKS" -ne 1 ] && echo 'es')"
   fi
 fi
