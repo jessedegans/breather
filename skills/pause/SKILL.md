@@ -20,6 +20,15 @@ The user is taking a break. Your job: make resuming effortless so the break feel
 
 3. **Save a context snapshot** to `${CLAUDE_PLUGIN_DATA:-~/.local/share/breather}/last-context.md`. Write it as a natural paragraph that reconstructs the user's mental state. Not a structured template. It should read like a colleague's note to themselves: what they were doing, the specific point they stopped at (file, function, command), what they were about to do next, and anything unresolved.
 
+   Good example:
+   > Working on the nudge delivery rewrite for breather. Finished rewriting check-duration.sh with the suffix/prefix/bypass escalation. check-nudge-delivery.sh now has position-aware detection. Statusline bypass state is done. All three files pass syntax check and are synced to the plugin cache. Next up: setup simplification (wrapper script, informed auto-allow). The brainstorm spec is in docs/brainstorm-setup-ux.md.
+
+   Bad example (too structured, hard to mentally reload from):
+   > **Task:** Nudge delivery rewrite
+   > **Files changed:** check-duration.sh, check-nudge-delivery.sh, statusline.sh
+   > **Status:** Complete
+   > **Next:** Setup simplification
+
 4. **Read daily stats** by running:
    ```bash
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/daily-stats.sh"
