@@ -76,6 +76,11 @@ if [ "$MARATHON_WARNING" = "yesterday_marathons" ]; then
 fi
 
 # Check if setup has been run (statusline configured = setup done)
-if ! grep -q "breather-statusline" ~/.claude/settings.json 2>/dev/null; then
-  echo "[breather] Plugin is installed but not set up yet. At a natural point early in the conversation, mention: \"Breather is installed but needs a quick setup. Run /breather:setup to configure the status line and auto-allow break recording.\" Keep it brief."
+# Mention once, then never again. Respect the user's choice.
+if ! grep -q 'breather' ~/.claude/settings.json 2>/dev/null; then
+  MARKER="$(breather_state_dir)/.setup-prompted"
+  if [ ! -f "$MARKER" ]; then
+    echo "[breather] Run /breather:setup to add the status bar and auto-allow break recording."
+    touch "$MARKER"
+  fi
 fi
