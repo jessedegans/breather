@@ -6,7 +6,7 @@
 #   Level 1 (suffix): "After answering, end with..." -- natural, ~85% compliance
 #   Level 2 (prefix): "Start your response with..." -- structural, ~92% compliance
 #   Level 3 (statusline): bypass Claude entirely -- 100% delivery
-# Escalation driven by nudge_ignored_count (0 = suffix, 1 = prefix, 2+ = statusline).
+# Escalation driven by nudge.ignored_count (0 = suffix, 1 = prefix, 2+ = statusline).
 set -euo pipefail
 
 SCRIPT_DIR="$(dirname "$0")"
@@ -17,61 +17,69 @@ INPUT=$(cat)
 BREATHER_SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // "unknown"')
 export BREATHER_SESSION_ID
 
-# Self-healing: ensure session file exists
-SESSION_FILE="$(breather_ensure_session "$BREATHER_SESSION_ID")"
+# Ensure state exists (self-healing)
+breather_init_state
+breather_check_day_reset
 
 NOW=$(date +%s)
 
-# --- Read current session state ---
-PROMPT_COUNT=$(jq -r '.prompt_count // 0' "$SESSION_FILE")
-LAST_PROMPT_TS=$(jq -r '.last_prompt_ts // 0' "$SESSION_FILE")
-LAST_NUDGE_TS=$(jq -r '.last_nudge_ts // 0' "$SESSION_FILE")
-NUDGE_IGNORED=$(jq -r '.nudge_ignored_count // 0' "$SESSION_FILE")
+# --- Read global state ---
+STATE=$(breather_read_state)
+LAST_PROMPT_TS=$(echo "$STATE" | jq -r '.fatigue.last_prompt_ts // 0')
+LAST_NUDGE_TS=$(echo "$STATE" | jq -r '.nudge.last_nudge_ts // 0')
+NUDGE_IGNORED=$(echo "$STATE" | jq -r '.nudge.ignored_count // 0')
+PROMPT_COUNT=$(echo "$STATE" | jq -r '.counters.prompt_count // 0')
 NEW_COUNT=$((PROMPT_COUNT + 1))
 
 # --- Inactivity detection ---
-# Check gap since last prompt in THIS session. But first check if a break
-# was already recorded globally (e.g. user did /breather:pause in another terminal).
 PROMPT_GAP_SEC=$((NOW - LAST_PROMPT_TS))
 PROMPT_GAP_MIN=$((PROMPT_GAP_SEC / 60))
 INACTIVITY_MSG=""
 
-# Check global state: did a break happen during our gap?
-GLOBAL_PRE=$(breather_read_all_sessions)
-GLOBAL_SINCE_BREAK=$(echo "$GLOBAL_PRE" | jq -r '.since_last_break_min // 0')
-
 if [ "$PROMPT_GAP_MIN" -ge 30 ] && [ "$LAST_PROMPT_TS" -gt 0 ]; then
-  # There was a gap. But was a break already recorded (in any session)?
-  if [ "$GLOBAL_SINCE_BREAK" -lt "$PROMPT_GAP_MIN" ]; then
-    # A break was recorded more recently than our gap started. Skip inactivity.
+  SINCE_BREAK_MIN=$(breather_since_last_break_min "$STATE")
+
+  if [ "$SINCE_BREAK_MIN" -lt "$PROMPT_GAP_MIN" ]; then
+    # A break was recorded more recently than our gap started. Skip.
     INACTIVITY_MSG=""
   elif [ "$PROMPT_GAP_MIN" -ge 45 ]; then
-    # 45+ min gap, no break recorded anywhere. Auto-count as full break.
-    # Increment counter in current session only, reset fatigue in ALL sessions.
-    SESSIONS_DIR="$(breather_sessions_dir)"
-    if compgen -G "$SESSIONS_DIR/*.json" > /dev/null 2>&1; then
-      for f in "$SESSIONS_DIR"/*.json; do
-        local_prompt_ts=$(jq -r '.last_prompt_ts // 0' "$f" 2>/dev/null)
-        if ! breather_is_stale "$local_prompt_ts"; then
-          if [ "$f" = "$SESSION_FILE" ]; then
-            jq ".full_breaks = (.full_breaks // 0) + 1 | .last_break_ts = $NOW | .last_full_break_ts = $NOW" \
-              "$f" > "${f}.tmp" && mv "${f}.tmp" "$f"
-          else
-            jq ".last_break_ts = $NOW" \
-              "$f" > "${f}.tmp" && mv "${f}.tmp" "$f"
-          fi
-        fi
-      done
-    fi
+    # 45+ min gap, no break recorded. Auto-count as full break.
+    breather_update_state --argjson now "$NOW" '
+      .counters.full_breaks += 1 |
+      .fatigue.last_break_ts = $now |
+      .fatigue.last_full_break_ts = $now
+    ' > /dev/null
     INACTIVITY_MSG="{\"systemMessage\": \"[breather] ${PROMPT_GAP_MIN} minute gap. Counting that as a break.\"}"
   else
-    # 30-44 min gap, no break elsewhere. Ambiguous.
+    # 30-44 min gap. Ambiguous.
     INACTIVITY_MSG="{\"systemMessage\": \"[breather] ${PROMPT_GAP_MIN} minute gap since last prompt. Don't ask about it unless it comes up naturally. If the user mentions they took a break, count it with /breather:stretch. Otherwise assume they were reading or thinking.\"}"
   fi
 fi
 
-# Update prompt count and last_prompt_ts
-jq ".prompt_count = $NEW_COUNT | .last_prompt_ts = $NOW" "$SESSION_FILE" > "${SESSION_FILE}.tmp" && mv "${SESSION_FILE}.tmp" "$SESSION_FILE"
+# --- Update prompt tracking ---
+# Add time delta to today_active_sec, capped at 300s to avoid counting idle gaps
+DELTA=$PROMPT_GAP_SEC
+if [ "$DELTA" -gt 300 ]; then
+  DELTA=300
+fi
+# Don't count delta on first prompt (gap from session start is meaningless)
+if [ "$LAST_PROMPT_TS" -le 0 ] 2>/dev/null; then
+  DELTA=0
+fi
+
+breather_update_state --argjson now "$NOW" --argjson count "$NEW_COUNT" --argjson delta "$DELTA" \
+  --arg sid "$BREATHER_SESSION_ID" '
+  .counters.prompt_count = $count |
+  .counters.today_active_sec = (.counters.today_active_sec + $delta) |
+  .fatigue.last_prompt_ts = $now |
+  .sessions[$sid].last_prompt_ts = $now
+' > /dev/null
+
+# Update session pointer file
+SESSION_FILE="$(breather_session_file "$BREATHER_SESSION_ID")"
+if [ -f "$SESSION_FILE" ]; then
+  breather_set_many "$SESSION_FILE" "last_prompt_ts=$NOW" "prompt_count=$NEW_COUNT"
+fi
 
 # If we detected inactivity, emit that message and skip nudge logic
 if [ -n "$INACTIVITY_MSG" ]; then
@@ -79,31 +87,34 @@ if [ -n "$INACTIVITY_MSG" ]; then
   exit 0
 fi
 
-# --- Global fatigue calculation ---
-GLOBAL=$(breather_read_all_sessions)
-SINCE_BREAK_MIN=$(echo "$GLOBAL" | jq -r '.since_last_break_min // 0')
-TODAY_TOTAL_MIN=$(echo "$GLOBAL" | jq -r '.today_total_min // 0')
+# --- Re-read state after updates ---
+STATE=$(breather_read_state)
+SINCE_BREAK_MIN=$(breather_since_last_break_min "$STATE")
+TODAY_TOTAL_MIN=$(breather_today_total_min "$STATE")
 
 # Session-level elapsed for velocity calculation
-START_TS=$(jq -r '.start_ts // 0' "$SESSION_FILE")
-ELAPSED_MIN=$(( (NOW - START_TS) / 60 ))
+SESSION_START=$(echo "$STATE" | jq -r --arg s "$BREATHER_SESSION_ID" '.sessions[$s].start_ts // 0')
+ELAPSED_MIN=$(( (NOW - SESSION_START) / 60 ))
 
-# Prompt velocity (session-level)
+# Prompt velocity (session-level, use session pointer for per-session count)
+SESSION_PROMPTS=$NEW_COUNT
+if [ -f "$SESSION_FILE" ]; then
+  SESSION_PROMPTS=$(jq -r '.prompt_count // 0' "$SESSION_FILE")
+fi
 if [ "$ELAPSED_MIN" -gt 0 ]; then
-  VELOCITY=$(( NEW_COUNT / ELAPSED_MIN ))
+  VELOCITY=$(( SESSION_PROMPTS / ELAPSED_MIN ))
 else
-  VELOCITY=$NEW_COUNT
+  VELOCITY=$SESSION_PROMPTS
 fi
 
 # --- Break commitment pre-notification ---
-BREAK_COMMITTED_AT=$(jq -r '.break_committed_at // "null"' "$SESSION_FILE")
-BREAK_COMMITTED_MIN=$(jq -r '.break_committed_min // "null"' "$SESSION_FILE")
+BREAK_COMMITTED_AT=$(echo "$STATE" | jq -r '.commitment.break_committed_at // "null"')
+BREAK_COMMITTED_MIN=$(echo "$STATE" | jq -r '.commitment.break_committed_min // "null"')
 
 if [ "$BREAK_COMMITTED_AT" != "null" ] && [ "$BREAK_COMMITTED_MIN" != "null" ]; then
   BREAK_DUE_AT=$((BREAK_COMMITTED_AT + BREAK_COMMITTED_MIN * 60))
   TIME_UNTIL_BREAK=$(( (BREAK_DUE_AT - NOW) / 60 ))
 
-  # 2-3 minutes before committed break time: pre-notification
   if [ "$TIME_UNTIL_BREAK" -le 3 ] && [ "$TIME_UNTIL_BREAK" -gt 0 ]; then
     echo '{"systemMessage": "[breather] The user committed to a break in about '"$TIME_UNTIL_BREAK"' minutes. At a natural point, mention this: \"Good stopping point coming up -- you said you'\''d take a break soon.\" Keep it brief, just a heads-up."}'
     exit 0
@@ -123,7 +134,7 @@ TIER=""
 # Velocity alarm: 5+ prompts/min sustained (stays integrated, not suffix/prefix)
 if [ "$VELOCITY" -ge 5 ] && [ "$ELAPSED_MIN" -ge 10 ]; then
   TIER="velocity"
-  NUDGE='{"systemMessage": "[breather] '"$NEW_COUNT"' prompts in '"$ELAPSED_MIN"'min ('"$VELOCITY"'/min). Weave this into your response naturally: pause, restate what you are actually trying to accomplish, and ask if this is still the right direction."}'
+  NUDGE='{"systemMessage": "[breather] '"$SESSION_PROMPTS"' prompts in '"$ELAPSED_MIN"'min ('"$VELOCITY"'/min). Weave this into your response naturally: pause, restate what you are actually trying to accomplish, and ask if this is still the right direction."}'
 
 # 90+ min without a break (global)
 elif [ "$SINCE_BREAK_MIN" -ge 90 ]; then
@@ -170,7 +181,11 @@ fi
 
 # Record nudge state and emit
 if [ -n "$NUDGE" ]; then
-  jq ".last_nudge_ts = $NOW | .nudge_pending = true | .nudge_tier = \"$TIER\"" \
-    "$SESSION_FILE" > "${SESSION_FILE}.tmp" && mv "${SESSION_FILE}.tmp" "$SESSION_FILE"
+  breather_update_state --argjson now "$NOW" --arg tier "$TIER" --arg sid "$BREATHER_SESSION_ID" '
+    .nudge.last_nudge_ts = $now |
+    .nudge.pending = true |
+    .nudge.pending_session_id = $sid |
+    .nudge.tier = $tier
+  ' > /dev/null
   echo "$NUDGE"
 fi

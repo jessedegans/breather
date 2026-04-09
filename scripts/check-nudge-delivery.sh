@@ -4,7 +4,7 @@
 #   Level 1 (suffix): check last 500 chars of response
 #   Level 2 (prefix): check first 200 chars of response
 #   Level 3 (bypass): no-op, statusline handles delivery
-# If nudge wasn't delivered, increment nudge_ignored_count for escalation.
+# If nudge wasn't delivered, increment nudge.ignored_count for escalation.
 set -euo pipefail
 
 SCRIPT_DIR="$(dirname "$0")"
@@ -15,19 +15,24 @@ INPUT=$(cat)
 BREATHER_SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // "unknown"' 2>/dev/null)
 export BREATHER_SESSION_ID
 
-SESSION_FILE="$(breather_session_file "$BREATHER_SESSION_ID")"
-[ -f "$SESSION_FILE" ] || exit 0
+STATE=$(breather_read_state)
 
 # Check if a nudge was pending
-NUDGE_PENDING=$(jq -r '.nudge_pending // false' "$SESSION_FILE")
+NUDGE_PENDING=$(echo "$STATE" | jq -r '.nudge.pending // false')
 [ "$NUDGE_PENDING" = "true" ] || exit 0
 
-NUDGE_TIER=$(jq -r '.nudge_tier // ""' "$SESSION_FILE")
-NUDGE_IGNORED=$(jq -r '.nudge_ignored_count // 0' "$SESSION_FILE")
+# Only check delivery in the session the nudge was sent to
+NUDGE_SID=$(echo "$STATE" | jq -r '.nudge.pending_session_id // ""')
+if [ -n "$NUDGE_SID" ] && [ "$NUDGE_SID" != "$BREATHER_SESSION_ID" ]; then
+  exit 0
+fi
+
+NUDGE_TIER=$(echo "$STATE" | jq -r '.nudge.tier // ""')
+NUDGE_IGNORED=$(echo "$STATE" | jq -r '.nudge.ignored_count // 0')
 
 # Level 3 (bypass): statusline handles it. Clear pending, done.
 if [ "$NUDGE_IGNORED" -ge 2 ] || [ "$NUDGE_TIER" = "bypass" ]; then
-  jq '.nudge_pending = false' "$SESSION_FILE" > "${SESSION_FILE}.tmp" && mv "${SESSION_FILE}.tmp" "$SESSION_FILE"
+  breather_update_state '.nudge.pending = false' > /dev/null
   exit 0
 fi
 
@@ -36,7 +41,7 @@ RESPONSE=$(echo "$INPUT" | jq -r '.assistant_response // .tool_result.content //
 
 # If we can't read the response, clear pending and move on
 if [ -z "$RESPONSE" ]; then
-  jq '.nudge_pending = false' "$SESSION_FILE" > "${SESSION_FILE}.tmp" && mv "${SESSION_FILE}.tmp" "$SESSION_FILE"
+  breather_update_state '.nudge.pending = false' > /dev/null
   exit 0
 fi
 
@@ -77,13 +82,20 @@ esac
 
 if [ "$DELIVERED" = "true" ]; then
   # Nudge delivered. Reset escalation.
-  jq '.nudge_pending = false | .nudge_tier = null | .nudge_ignored_count = 0' \
-    "$SESSION_FILE" > "${SESSION_FILE}.tmp" && mv "${SESSION_FILE}.tmp" "$SESSION_FILE"
+  breather_update_state '
+    .nudge.pending = false |
+    .nudge.tier = null |
+    .nudge.pending_session_id = null |
+    .nudge.ignored_count = 0
+  ' > /dev/null
 else
   # Nudge not delivered. Escalate.
-  NEW_IGNORED=$((NUDGE_IGNORED + 1))
-  jq ".nudge_pending = false | .nudge_tier = null | .nudge_ignored_count = $NEW_IGNORED" \
-    "$SESSION_FILE" > "${SESSION_FILE}.tmp" && mv "${SESSION_FILE}.tmp" "$SESSION_FILE"
+  breather_update_state '
+    .nudge.pending = false |
+    .nudge.tier = null |
+    .nudge.pending_session_id = null |
+    .nudge.ignored_count += 1
+  ' > /dev/null
 fi
 
 exit 0
