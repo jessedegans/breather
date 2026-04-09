@@ -20,11 +20,13 @@ SESSIONS_DIR="$(breather_sessions_dir)"
 NOW=$(date +%s)
 if compgen -G "$SESSIONS_DIR/*.json" > /dev/null 2>&1; then
   for f in "$SESSIONS_DIR"/*.json; do
+    local_last_prompt=$(jq -r '.last_prompt_ts // 0' "$f" 2>/dev/null)
     local_start=$(jq -r '.start_ts // 0' "$f" 2>/dev/null)
-    if breather_is_stale "$local_start"; then
-      local_elapsed=$(( (NOW - local_start) / 60 ))
+    if breather_is_stale "$local_last_prompt"; then
+      # Duration is actual active time (last prompt - start), not wall clock to now
+      local_elapsed=$(( (local_last_prompt - local_start) / 60 ))
       if [ "$local_elapsed" -gt 1 ]; then
-        jq -c ". + {end_ts: $NOW, duration_min: $local_elapsed, date: \"$(date -Iseconds)\"}" "$f" >> "$HISTORY_FILE"
+        jq -c ". + {end_ts: $local_last_prompt, duration_min: $local_elapsed, date: \"$(date -Iseconds)\"}" "$f" >> "$HISTORY_FILE"
       fi
       rm -f "$f"
     fi
