@@ -173,7 +173,7 @@ breather_set_many() {
     fi
 
     expr="${expr} | .${field} = \$${var}"
-    ((i++))
+    i=$((i + 1))
   done
 
   if jq "${jq_args[@]}" "$expr" "$file" > "${file}.tmp"; then

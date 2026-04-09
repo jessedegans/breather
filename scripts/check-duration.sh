@@ -75,10 +75,12 @@ breather_update_state --argjson now "$NOW" --argjson count "$NEW_COUNT" --argjso
   .sessions[$sid].last_prompt_ts = $now
 ' > /dev/null
 
-# Update session pointer file
+# Update session pointer file (per-session prompt count, not global)
 SESSION_FILE="$(breather_session_file "$BREATHER_SESSION_ID")"
 if [ -f "$SESSION_FILE" ]; then
-  breather_set_many "$SESSION_FILE" "last_prompt_ts=$NOW" "prompt_count=$NEW_COUNT"
+  SESSION_PC=$(jq -r '.prompt_count // 0' "$SESSION_FILE")
+  SESSION_PC=$((SESSION_PC + 1))
+  breather_set_many "$SESSION_FILE" "last_prompt_ts=$NOW" "prompt_count=$SESSION_PC"
 fi
 
 # If we detected inactivity, emit that message and skip nudge logic
