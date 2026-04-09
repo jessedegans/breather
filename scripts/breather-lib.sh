@@ -270,13 +270,24 @@ breather_today_total_min() {
   today_active_sec=$(echo "$state" | jq -r '.counters.today_active_sec // 0')
   earliest_active_ts=$(echo "$state" | jq -r '.fatigue.earliest_active_ts // 0')
 
+  local incremental_min=0
+  local wallclock_min=0
+
   if [ "$today_active_sec" -gt 0 ]; then
-    echo $(( today_active_sec / 60 ))
-  elif [ "$earliest_active_ts" -gt 0 ] 2>/dev/null; then
-    # Fallback: wall-clock from earliest active session (pre-migration or fresh state)
-    echo $(( (now - earliest_active_ts) / 60 ))
+    incremental_min=$(( today_active_sec / 60 ))
+  fi
+
+  if [ "$earliest_active_ts" -gt 0 ] 2>/dev/null; then
+    wallclock_min=$(( (now - earliest_active_ts) / 60 ))
+  fi
+
+  # Use whichever is larger. Wall-clock serves as a floor during the
+  # transition period after migration (when today_active_sec starts at 0).
+  # Once the counter catches up over a full day, it'll naturally be larger.
+  if [ "$incremental_min" -gt "$wallclock_min" ]; then
+    echo "$incremental_min"
   else
-    echo 0
+    echo "$wallclock_min"
   fi
 }
 
