@@ -136,7 +136,8 @@ breather_check_day_reset() {
       .counters.quick_breaks = 0 |
       .counters.prompt_count = 0 |
       .counters.today_active_sec = 0 |
-      .fatigue.earliest_active_ts = $now
+      .fatigue.earliest_active_ts = $now |
+      .fatigue.last_break_ts = 0
     ' > /dev/null
   fi
 }
