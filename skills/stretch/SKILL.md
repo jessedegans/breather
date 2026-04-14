@@ -1,6 +1,8 @@
 ---
 name: stretch
-description: Use when the user wants a quick break, says "stretch", "quick break", "brb", "grabbing coffee", "need a sec", or agrees to a micro-break suggestion.
+description: Quick break. No context saving, no ceremony. Partial fatigue reset (+10 min).
+when_to_use: User says "stretch", "quick break", "brb", "grabbing coffee", "need a sec", or agrees to a micro-break suggestion.
+allowed-tools: Bash
 ---
 
 # Stretch - Quick Break
