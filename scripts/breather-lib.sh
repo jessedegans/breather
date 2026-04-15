@@ -4,6 +4,9 @@
 #
 # All functions are prefixed with breather_ to avoid collisions.
 # No side effects on source -- only function definitions.
+#
+# Architecture: single state.json for global state (fatigue, counters, nudge).
+# Thin session pointer files in sessions/ for session identity only.
 
 # --- Path helpers ---
 
@@ -40,98 +43,19 @@ breather_history_file() {
   echo "$(breather_state_dir)/history.jsonl"
 }
 
-# Get the session file path for a given session ID.
-# Falls back to "unknown" if no ID provided.
+breather_state_file() {
+  echo "$(breather_state_dir)/state.json"
+}
+
+# Get the session pointer file path for a given session ID.
 breather_session_file() {
   local sid="${1:-${BREATHER_SESSION_ID:-unknown}}"
   echo "$(breather_sessions_dir)/${sid}.json"
 }
 
-# --- Session management ---
-
-# Create a session file if it doesn't exist (self-healing bootstrap).
-# Args: $1 = session_id (optional, defaults to BREATHER_SESSION_ID)
-breather_ensure_session() {
-  local sid="${1:-${BREATHER_SESSION_ID:-unknown}}"
-  local sf
-  sf="$(breather_session_file "$sid")"
-
-  if [ ! -f "$sf" ]; then
-    local now
-    now=$(date +%s)
-    jq -n --arg sid "$sid" --argjson ts "$now" '{
-      session_id: $sid,
-      start_ts: $ts,
-      prompt_count: 0,
-      last_prompt_ts: $ts,
-      full_breaks: 0,
-      quick_breaks: 0,
-      last_break_ts: $ts,
-      last_full_break_ts: null,
-      last_quick_break_ts: null,
-      last_nudge_ts: 0,
-      nudge_pending: false,
-      nudge_tier: null,
-      nudge_ignored_count: 0,
-      break_committed_at: null,
-      break_committed_min: null,
-      intention: null,
-      pattern_warning: ""
-    }' > "$sf"
-  fi
-
-  echo "$sf"
-}
-
-# --- Finding sessions ---
-
-# Find the most recently active session file (by last_prompt_ts).
-# Used by scripts that don't know their session_id (e.g. record-break from skills).
-breather_find_current_session() {
-  local sessions_dir
-  sessions_dir="$(breather_sessions_dir)"
-  local best_file=""
-  local best_ts=0
-
-  if compgen -G "$sessions_dir/*.json" > /dev/null 2>&1; then
-    for f in "$sessions_dir"/*.json; do
-      local ts
-      ts=$(jq -r '.last_prompt_ts // 0' "$f" 2>/dev/null)
-      if [ "$ts" -gt "$best_ts" ] 2>/dev/null; then
-        best_ts=$ts
-        best_file=$f
-      fi
-    done
-  fi
-
-  if [ -n "$best_file" ]; then
-    echo "$best_file"
-  fi
-}
-
-# Update ALL active (non-stale) session files with a jq expression.
-# Used for breaks: a break is global, affects all sessions.
-# Args: $1 = jq expression (e.g. ".full_breaks = .full_breaks + 1")
-breather_update_all_sessions() {
-  local expr="$1"
-  local sessions_dir
-  sessions_dir="$(breather_sessions_dir)"
-
-  if compgen -G "$sessions_dir/*.json" > /dev/null 2>&1; then
-    for f in "$sessions_dir"/*.json; do
-      local prompt_ts
-      prompt_ts=$(jq -r '.last_prompt_ts // 0' "$f" 2>/dev/null)
-      if ! breather_is_stale "$prompt_ts"; then
-        jq "$expr" "$f" > "${f}.tmp" && mv "${f}.tmp" "$f"
-      fi
-    done
-  fi
-}
-
 # --- Staleness detection ---
 
 # Returns 0 (true) if timestamp is 8+ hours ago (overnight = reset).
-# Args: $1 = unix timestamp
 breather_is_stale() {
   local ts="${1:-0}"
   local now
@@ -141,162 +65,382 @@ breather_is_stale() {
   [ "$diff" -ge "$threshold" ]
 }
 
-# --- Global aggregation ---
+# --- State file: read/write with flock ---
 
-# Read all active session files and output aggregated JSON.
-# Output: { today_total_min, since_last_break_min, total_breaks, total_prompts,
-#           active_sessions, last_prompt_ts, any_nudge_ignored, max_nudge_ignored,
-#           break_committed_at, break_committed_min }
-breather_read_all_sessions() {
-  local sessions_dir
-  sessions_dir="$(breather_sessions_dir)"
-  local history_file
-  history_file="$(breather_history_file)"
-  local now
-  now=$(date +%s)
-  local stale_threshold=28800  # 8 hours
-
-  # Collect all session files (active)
-  local files=()
-  if compgen -G "$sessions_dir/*.json" > /dev/null 2>&1; then
-    files=("$sessions_dir"/*.json)
-  fi
-
-  # If no active sessions, return zeroed output
-  if [ ${#files[@]} -eq 0 ]; then
-    jq -n '{
-      today_total_min: 0,
-      since_last_break_min: 0,
-      full_breaks: 0,
-      quick_breaks: 0,
-      total_prompts: 0,
-      active_sessions: 0,
-      last_prompt_ts: 0,
-      any_nudge_ignored: false,
-      max_nudge_ignored: 0,
-      break_committed_at: null,
-      break_committed_min: null
-    }'
-    return
-  fi
-
-  # Merge all session files into one array, then aggregate
-  local merged
-  merged=$(jq -s '.' "${files[@]}" 2>/dev/null || echo '[]')
-
-  # Find the most recent break timestamp across all sessions
-  local last_break_ts
-  last_break_ts=$(echo "$merged" | jq '[.[].last_break_ts // 0] | max')
-
-  # Find the most recent prompt timestamp across all sessions
-  local last_prompt_ts
-  last_prompt_ts=$(echo "$merged" | jq '[.[].last_prompt_ts // 0] | max')
-
-  # Check for overnight reset based on PROMPT ACTIVITY, not break age.
-  # If the last prompt across all sessions was 8+ hours ago, this is a new day.
-  # But if prompts are recent, the session is active regardless of how old
-  # last_break_ts is. A 9-hour marathon should still show 9h since last break.
-  local since_last_prompt_sec=$((now - last_prompt_ts))
-  local since_last_break_sec=$((now - last_break_ts))
-  local since_last_break_min
-
-  if [ "$since_last_prompt_sec" -ge "$stale_threshold" ]; then
-    # No prompts for 8+ hours. Fresh start.
-    since_last_break_min=0
+# Read state.json. No lock needed (atomic mv means reads always see complete JSON).
+# Returns {} if missing.
+breather_read_state() {
+  local sf
+  sf="$(breather_state_file)"
+  if [ -f "$sf" ]; then
+    cat "$sf"
   else
-    since_last_break_min=$((since_last_break_sec / 60))
+    echo '{}'
   fi
+}
 
-  # Calculate "today" total using wall-clock time, not sum of sessions.
-  # Multiple overlapping terminals = one human. Don't double-count.
-  # Today total = (now - earliest_active_start) + history from before active window.
-  local today_total_sec=0
-  local earliest_active_start=$now
+# Locked read-modify-write of state.json.
+# Args: jq arguments and expression (passed directly to jq)
+# Usage: breather_update_state '.counters.prompt_count += 1'
+#        breather_update_state --argjson now "$NOW" '.fatigue.last_prompt_ts = $now'
+# Outputs the updated JSON to stdout.
+breather_update_state() {
+  local sf
+  sf="$(breather_state_file)"
+  local lockfile="${sf}.lock"
 
-  # Find earliest active (non-stale) session start
-  for f in "${files[@]}"; do
-    local start_ts
-    start_ts=$(jq -r '.start_ts // 0' "$f" 2>/dev/null)
-    if ! breather_is_stale "$start_ts" && [ "$start_ts" -lt "$earliest_active_start" ] 2>/dev/null; then
-      earliest_active_start=$start_ts
+  (
+    flock -w 2 200 || { cat "$sf" 2>/dev/null || echo '{}'; return 1; }
+    local current
+    current=$(cat "$sf" 2>/dev/null || echo '{}')
+    local updated
+    updated=$(echo "$current" | jq "$@")
+    echo "$updated" > "$sf"
+    echo "$updated"
+  ) 200>"$lockfile"
+}
+
+# --- Day reset ---
+
+# Check if the calendar day has changed. If so, archive yesterday and reset counters.
+# Call at start of session-start.sh and check-duration.sh.
+breather_check_day_reset() {
+  local sf
+  sf="$(breather_state_file)"
+  [ -f "$sf" ] || return 0
+
+  local today
+  today=$(date +%Y-%m-%d)
+  local day_key
+  day_key=$(jq -r '.day_key // ""' "$sf")
+
+  if [ "$today" != "$day_key" ] && [ -n "$day_key" ]; then
+    local history_file
+    history_file="$(breather_history_file)"
+
+    # Archive day summary to history
+    jq -c '{
+      type: "day_summary",
+      day_key: .day_key,
+      counters: .counters,
+      sessions: (.sessions | keys | length),
+      date: now | todate
+    }' "$sf" >> "$history_file" 2>/dev/null || true
+
+    # Reset counters, update day_key, keep fatigue and sessions
+    local now
+    now=$(date +%s)
+    breather_update_state --argjson now "$now" --arg today "$today" '
+      .day_key = $today |
+      .counters.full_breaks = 0 |
+      .counters.quick_breaks = 0 |
+      .counters.prompt_count = 0 |
+      .counters.today_active_sec = 0 |
+      .fatigue.earliest_active_ts = $now |
+      .fatigue.last_break_ts = 0
+    ' > /dev/null
+  fi
+}
+
+# --- JSON helpers ---
+
+# Atomic multi-field update of a JSON file.
+# Args: $1 = file path, remaining args = "field=value" or "+field" (increment)
+# Usage: breather_set_many "$file" "last_break_ts=$NOW" "+full_breaks" "nudge_tier=null"
+breather_set_many() {
+  local file="$1"; shift
+  [ -f "$file" ] || return 1
+
+  local expr="."
+  local -a jq_args=()
+  local i=0
+
+  for pair in "$@"; do
+    # +field means increment by 1
+    if [[ "$pair" == +* ]]; then
+      local field="${pair#+}"
+      expr="${expr} | .${field} = ((.${field} // 0) + 1)"
+      continue
     fi
+
+    local field="${pair%%=*}"
+    local value="${pair#*=}"
+    local var="v${i}"
+
+    if [[ "$value" =~ ^-?[0-9]+\.?[0-9]*$ ]] || [[ "$value" == "null" || "$value" == "true" || "$value" == "false" ]]; then
+      jq_args+=(--argjson "$var" "$value")
+    else
+      jq_args+=(--arg "$var" "$value")
+    fi
+
+    expr="${expr} | .${field} = \$${var}"
+    i=$((i + 1))
   done
 
-  # Wall-clock time from earliest active session
-  if [ "$earliest_active_start" -lt "$now" ]; then
-    today_total_sec=$((now - earliest_active_start))
+  if jq "${jq_args[@]}" "$expr" "$file" > "${file}.tmp"; then
+    mv "${file}.tmp" "$file"
+  else
+    rm -f "${file}.tmp"
+    return 1
+  fi
+}
+
+# --- State initialization ---
+
+# Create state.json if it doesn't exist. Called by migration or first session-start.
+breather_init_state() {
+  local sf
+  sf="$(breather_state_file)"
+  [ -f "$sf" ] && return 0
+
+  local now
+  now=$(date +%s)
+  local today
+  today=$(date +%Y-%m-%d)
+
+  jq -n --argjson now "$now" --arg today "$today" '{
+    version: 3,
+    day_key: $today,
+    fatigue: {
+      last_break_ts: 0,
+      last_full_break_ts: null,
+      last_quick_break_ts: null,
+      last_prompt_ts: $now,
+      earliest_active_ts: $now
+    },
+    counters: {
+      full_breaks: 0,
+      quick_breaks: 0,
+      prompt_count: 0,
+      today_active_sec: 0
+    },
+    nudge: {
+      last_nudge_ts: 0,
+      pending: false,
+      pending_session_id: null,
+      tier: null,
+      ignored_count: 0
+    },
+    commitment: {
+      break_committed_at: null,
+      break_committed_min: null
+    },
+    sessions: {}
+  }' > "$sf"
+}
+
+# --- Computed fields (read from state.json) ---
+
+# Calculate since_last_break_min from state.json.
+# Handles: no break taken (fall back to earliest_active_ts), overnight reset.
+breather_since_last_break_min() {
+  local state="$1"
+  local now
+  now=$(date +%s)
+
+  local last_break_ts last_prompt_ts earliest_active_ts
+  last_break_ts=$(echo "$state" | jq -r '.fatigue.last_break_ts // 0')
+  last_prompt_ts=$(echo "$state" | jq -r '.fatigue.last_prompt_ts // 0')
+  earliest_active_ts=$(echo "$state" | jq -r '.fatigue.earliest_active_ts // 0')
+
+  local since_last_prompt_sec=$((now - last_prompt_ts))
+
+  if [ "$since_last_prompt_sec" -ge 28800 ]; then
+    # No prompts for 8+ hours. Fresh start.
+    echo 0
+  elif [ "$last_break_ts" -le 0 ] 2>/dev/null; then
+    # No break ever taken. Measure from earliest active session.
+    if [ "$earliest_active_ts" -gt 0 ] 2>/dev/null; then
+      echo $(( (now - earliest_active_ts) / 60 ))
+    else
+      echo 0
+    fi
+  else
+    echo $(( (now - last_break_ts) / 60 ))
+  fi
+}
+
+# Calculate today_total_min from state.json.
+# Uses today_active_sec (incremental counter) with wall-clock fallback.
+breather_today_total_min() {
+  local state="$1"
+  local now
+  now=$(date +%s)
+
+  local today_active_sec earliest_active_ts
+  today_active_sec=$(echo "$state" | jq -r '.counters.today_active_sec // 0')
+  earliest_active_ts=$(echo "$state" | jq -r '.fatigue.earliest_active_ts // 0')
+
+  local incremental_min=0
+  local wallclock_min=0
+
+  if [ "$today_active_sec" -gt 0 ]; then
+    incremental_min=$(( today_active_sec / 60 ))
   fi
 
-  # Add history entries that ended BEFORE the earliest active session started
-  # (to avoid double-counting overlap)
-  if [ -f "$history_file" ]; then
-    local history_cutoff=$((now - stale_threshold))
-    local history_today
-    history_today=$(jq -s --argjson cutoff "$history_cutoff" --argjson active_start "$earliest_active_start" \
-      '[.[] | select(.end_ts > $cutoff and .end_ts <= $active_start)] | map(.duration_min // 0) | add // 0' \
-      "$history_file" 2>/dev/null || echo 0)
-    today_total_sec=$((today_total_sec + history_today * 60))
+  if [ "$earliest_active_ts" -gt 0 ] 2>/dev/null; then
+    wallclock_min=$(( (now - earliest_active_ts) / 60 ))
   fi
 
-  local today_total_min=$((today_total_sec / 60))
-
-  # Aggregate breaks and prompts (only from today's sessions)
-  # Filter: only sessions where last_prompt_ts is within the stale threshold
-  local cutoff=$((now - stale_threshold))
-  local full_breaks
-  full_breaks=$(echo "$merged" | jq --argjson cutoff "$cutoff" \
-    '[.[] | select((.last_prompt_ts // 0) > $cutoff) | (.full_breaks // 0)] | add // 0')
-  local quick_breaks
-  quick_breaks=$(echo "$merged" | jq --argjson cutoff "$cutoff" \
-    '[.[] | select((.last_prompt_ts // 0) > $cutoff) | (.quick_breaks // 0)] | add // 0')
-  local total_prompts
-  total_prompts=$(echo "$merged" | jq --argjson cutoff "$cutoff" \
-    '[.[] | select((.last_prompt_ts // 0) > $cutoff) | .prompt_count // 0] | add // 0')
-
-  # Nudge ignored status
-  local max_nudge_ignored
-  max_nudge_ignored=$(echo "$merged" | jq '[.[].nudge_ignored_count // 0] | max // 0')
-  local any_nudge_ignored="false"
-  if [ "$max_nudge_ignored" -ge 2 ]; then
-    any_nudge_ignored="true"
+  # Use whichever is larger. Wall-clock serves as a floor during the
+  # transition period after migration (when today_active_sec starts at 0).
+  # Once the counter catches up over a full day, it'll naturally be larger.
+  if [ "$incremental_min" -gt "$wallclock_min" ]; then
+    echo "$incremental_min"
+  else
+    echo "$wallclock_min"
   fi
-
-  # Break commitment (from any session)
-  local break_committed_at
-  break_committed_at=$(echo "$merged" | jq '[.[].break_committed_at // null | select(. != null)] | max // null')
-  local break_committed_min
-  break_committed_min=$(echo "$merged" | jq '[.[].break_committed_min // null | select(. != null)] | first // null')
-
-  jq -n \
-    --argjson ttm "$today_total_min" \
-    --argjson slbm "$since_last_break_min" \
-    --argjson fb "$full_breaks" \
-    --argjson qb "$quick_breaks" \
-    --argjson tp "$total_prompts" \
-    --argjson as "${#files[@]}" \
-    --argjson lpt "$last_prompt_ts" \
-    --argjson ani "$any_nudge_ignored" \
-    --argjson mni "$max_nudge_ignored" \
-    --argjson bca "$break_committed_at" \
-    --argjson bcm "$break_committed_min" \
-    '{
-      today_total_min: $ttm,
-      since_last_break_min: $slbm,
-      full_breaks: $fb,
-      quick_breaks: $qb,
-      total_prompts: $tp,
-      active_sessions: $as,
-      last_prompt_ts: $lpt,
-      any_nudge_ignored: $ani,
-      max_nudge_ignored: $mni,
-      break_committed_at: $bca,
-      break_committed_min: $bcm
-    }'
 }
 
 # --- Migration ---
 
-# Migrate v1 current-session.json to v2 sessions/ directory
+# Migrate v2 (per-session with counters) to v3 (single state.json).
+# Idempotent: skips if state.json already exists.
+breather_migrate_v2_to_v3() {
+  local state_dir
+  state_dir="$(breather_state_dir)"
+  local sf="$state_dir/state.json"
+  local sessions_dir="$state_dir/sessions"
+
+  # Already migrated?
+  [ -f "$sf" ] && return 0
+
+  # No sessions dir = nothing to migrate, just init fresh
+  if [ ! -d "$sessions_dir" ] || ! compgen -G "$sessions_dir/*.json" > /dev/null 2>&1; then
+    breather_init_state
+    return 0
+  fi
+
+  local now
+  now=$(date +%s)
+  local today
+  today=$(date +%Y-%m-%d)
+  local stale_threshold=28800
+
+  # Collect data from existing v2 session files
+  local max_full=0 max_quick=0 total_prompts=0
+  local max_last_prompt=0 max_last_break=0 earliest_start=$now
+  local max_nudge_ignored=0 last_nudge_ts=0
+  local nudge_pending="false" nudge_tier="null" nudge_pending_sid="null"
+  local break_committed_at="null" break_committed_min="null"
+  local sessions_map="{}"
+
+  for f in "$sessions_dir"/*.json; do
+    local sid start_ts last_prompt prompt_count full quick last_break
+    local n_ignored n_nudge_ts n_pending n_tier
+    local bca bcm
+
+    sid=$(jq -r '.session_id // "unknown"' "$f")
+    start_ts=$(jq -r '.start_ts // 0' "$f")
+    last_prompt=$(jq -r '.last_prompt_ts // 0' "$f")
+    prompt_count=$(jq -r '.prompt_count // 0' "$f")
+    full=$(jq -r '.full_breaks // 0' "$f")
+    quick=$(jq -r '.quick_breaks // 0' "$f")
+    last_break=$(jq -r '.last_break_ts // 0' "$f")
+    n_ignored=$(jq -r '.nudge_ignored_count // 0' "$f")
+    n_nudge_ts=$(jq -r '.last_nudge_ts // 0' "$f")
+    n_pending=$(jq -r '.nudge_pending // false' "$f")
+    n_tier=$(jq -r '.nudge_tier // null' "$f")
+    bca=$(jq -r '.break_committed_at // null' "$f")
+    bcm=$(jq -r '.break_committed_min // null' "$f")
+
+    # Skip stale sessions (archive them)
+    if [ $((now - last_prompt)) -ge "$stale_threshold" ]; then
+      local elapsed=$(( (last_prompt - start_ts) / 60 ))
+      if [ "$elapsed" -gt 1 ]; then
+        local history_file
+        history_file="$(breather_history_file)"
+        jq -c ". + {end_ts: $last_prompt, duration_min: $elapsed, date: \"$(date -Iseconds)\"}" "$f" >> "$history_file"
+      fi
+      rm -f "$f"
+      continue
+    fi
+
+    # Use max for break counts (v2 duplicated them across sessions)
+    [ "$full" -gt "$max_full" ] && max_full=$full
+    [ "$quick" -gt "$max_quick" ] && max_quick=$quick
+    total_prompts=$((total_prompts + prompt_count))
+    [ "$last_prompt" -gt "$max_last_prompt" ] && max_last_prompt=$last_prompt
+    [ "$last_break" -gt "$max_last_break" ] && max_last_break=$last_break
+    [ "$start_ts" -lt "$earliest_start" ] && earliest_start=$start_ts
+    [ "$n_ignored" -gt "$max_nudge_ignored" ] && max_nudge_ignored=$n_ignored
+    [ "$n_nudge_ts" -gt "$last_nudge_ts" ] && last_nudge_ts=$n_nudge_ts
+
+    if [ "$n_pending" = "true" ]; then
+      nudge_pending="true"
+      nudge_tier="\"$n_tier\""
+      nudge_pending_sid="\"$sid\""
+    fi
+
+    if [ "$bca" != "null" ]; then
+      break_committed_at=$bca
+      break_committed_min=$bcm
+    fi
+
+    # Add to sessions map
+    sessions_map=$(echo "$sessions_map" | jq \
+      --arg sid "$sid" \
+      --argjson start "$start_ts" \
+      --argjson lp "$last_prompt" \
+      '. + {($sid): {start_ts: $start, last_prompt_ts: $lp}}')
+
+    # Slim down session file to pointer format
+    jq '{session_id, start_ts, last_prompt_ts, prompt_count}' "$f" > "${f}.tmp" \
+      && mv "${f}.tmp" "$f"
+  done
+
+  # Create state.json
+  jq -n \
+    --argjson v 3 \
+    --arg dk "$today" \
+    --argjson lb "$max_last_break" \
+    --argjson lfb "null" \
+    --argjson lqb "null" \
+    --argjson lp "$max_last_prompt" \
+    --argjson ea "$earliest_start" \
+    --argjson fb "$max_full" \
+    --argjson qb "$max_quick" \
+    --argjson pc "$total_prompts" \
+    --argjson lnt "$last_nudge_ts" \
+    --argjson np "$nudge_pending" \
+    --argjson nps "$nudge_pending_sid" \
+    --argjson nt "$nudge_tier" \
+    --argjson nic "$max_nudge_ignored" \
+    --argjson bca "$break_committed_at" \
+    --argjson bcm "$break_committed_min" \
+    --argjson sm "$sessions_map" \
+    '{
+      version: $v,
+      day_key: $dk,
+      fatigue: {
+        last_break_ts: $lb,
+        last_full_break_ts: $lfb,
+        last_quick_break_ts: $lqb,
+        last_prompt_ts: $lp,
+        earliest_active_ts: $ea
+      },
+      counters: {
+        full_breaks: $fb,
+        quick_breaks: $qb,
+        prompt_count: $pc,
+        today_active_sec: 0
+      },
+      nudge: {
+        last_nudge_ts: $lnt,
+        pending: $np,
+        pending_session_id: $nps,
+        tier: $nt,
+        ignored_count: $nic
+      },
+      commitment: {
+        break_committed_at: $bca,
+        break_committed_min: $bcm
+      },
+      sessions: $sm
+    }' > "$sf"
+}
+
+# Migrate v1 current-session.json to v2 sessions/ directory (kept for compat)
 breather_migrate_v1() {
   local state_dir
   state_dir="$(breather_state_dir)"
@@ -310,13 +454,11 @@ breather_migrate_v1() {
     local sessions_dir
     sessions_dir="$(breather_sessions_dir)"
 
-    # Also migrate old history.jsonl -> history.jsonl (rename if needed)
     local old_history="$state_dir/session-history.jsonl"
     if [ -f "$old_history" ] && [ ! -f "$history_file" ]; then
       mv "$old_history" "$history_file"
     fi
 
-    # Move session file
     mv "$old_file" "$sessions_dir/${sid}.json"
   fi
 }

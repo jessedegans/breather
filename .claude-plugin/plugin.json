@@ -8,6 +8,5 @@
   },
   "repository": "https://github.com/jessedegans/breather",
   "license": "MIT",
-  "keywords": ["burnout", "breaks", "pacing", "focus", "productivity", "developer-experience"],
-  "userConfig": {}
+  "keywords": ["burnout", "breaks", "pacing", "focus", "productivity", "developer-experience"]
 }

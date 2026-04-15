@@ -1,6 +1,8 @@
 ---
 name: reflect
-description: Use when the user is wrapping up a session and says "reflect", "done for today", "wrapping up", "end of day", "session summary", or "what did I do today".
+description: End-of-session review. What you shipped, open threads, next steps.
+when_to_use: User says "reflect", "done for today", "wrapping up", "end of day", "session summary", or "what did I do today".
+allowed-tools: Bash Read Write
 ---
 
 # Reflect - End-of-Session Review

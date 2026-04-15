@@ -62,12 +62,11 @@ If resuming costs 20 minutes of "where was I?", you'll skip the break. If `/brea
 
 ## Multi-session aware
 
-Most devs run 3-8 Claude Code terminals simultaneously. Breather tracks fatigue **globally**:
+Most devs run 3-8 Claude Code terminals simultaneously. Breather tracks fatigue **globally** via a single shared state file:
 
-- Each session writes its own state file
-- The status line and nudge system read ALL session files to compute daily totals
-- A break in one window is visible in all windows
-- "Taking a break" in terminal 3 resets the fatigue clock everywhere
+- One `state.json` tracks all fatigue, breaks, and nudge state
+- A break in one window resets the fatigue clock everywhere
+- No double-counting. Three terminals open for an hour = 1 hour, not 3.
 
 The number that matters is your total AI work today, not how long one terminal has been open.
 
@@ -107,11 +106,10 @@ All state lives in `$CLAUDE_PLUGIN_DATA` or `~/.local/share/breather/`:
 
 | Path | Purpose |
 |------|---------|
-| `sessions/{id}.json` | One file per active Claude Code session |
+| `state.json` | Global state: fatigue, counters, nudge tracking, active sessions |
+| `sessions/{id}.json` | Lightweight per-terminal pointer (prompt count, timestamps) |
 | `history.jsonl` | All past sessions (append-only log) |
-| `reflections.md` | Running log of end-of-session reflections |
 | `last-context.md` | Context snapshot from last `/breather:pause` |
-| `last-reflection.md` | Most recent reflection (for quick access) |
 
 ## Design philosophy
 
