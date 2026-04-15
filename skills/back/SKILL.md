@@ -2,7 +2,7 @@
 name: back
 description: Restore your mental context after a break. 5 seconds to get back in flow.
 when_to_use: User says "I'm back", "back", "where was I", "what was I doing", "resume work".
-allowed-tools: Bash, Read
+allowed-tools: Bash Read
 ---
 
 # Resume - Restore Context After a Break
